@@ -1,4 +1,4 @@
-"""荘園ナビ — 第五人格の早見・BAN予測ツール (小窓デスクトップアプリ)
+"""荘園手記 — 第五人格の早見・BAN予測ツール (小窓デスクトップアプリ)
 
 - 起動すると前回データを即表示 → 裏で最新情報を取得 → 画面を自動更新
 - ランク戦の試合前画面を自動で読み取り(OCR): マップ / 自分たちがBANしたハンター / BANされたサバイバー
@@ -42,42 +42,11 @@ DATA = scraper.DATA_DIR
 SETTINGS = DATA / "settings.json"
 RECORDS = DATA / "records.json"
 AUTO = "--auto" in sys.argv
-APP_NAME = "荘園ナビ"
+from winutil import APP_ID, APP_NAME, find_app_window  # noqa: E402
 ICON = ROOT / "icon.ico"
 
-
-def find_app_window(exclude_self=False):
-    """タイトルが APP_NAME で、python(w).exe が持つウィンドウだけを返す。
-    (エクスプローラーのタブ等が同じ名前のウィンドウを持つことがあるため FindWindow だけでは不可)"""
-    u, k = ctypes.windll.user32, ctypes.windll.kernel32
-    found = []
-
-    @ctypes.WINFUNCTYPE(wintypes.BOOL, wintypes.HWND, wintypes.LPARAM)
-    def cb(h, _):
-        buf = ctypes.create_unicode_buffer(64)
-        u.GetWindowTextW(h, buf, 64)
-        if buf.value != APP_NAME:
-            return True
-        pid = wintypes.DWORD()
-        u.GetWindowThreadProcessId(h, ctypes.byref(pid))
-        if exclude_self and pid.value == k.GetCurrentProcessId():
-            return True
-        hp = k.OpenProcess(0x1000, False, pid.value)  # PROCESS_QUERY_LIMITED_INFORMATION
-        if hp:
-            name = ctypes.create_unicode_buffer(260)
-            size = wintypes.DWORD(260)
-            ok = k.QueryFullProcessImageNameW(hp, 0, name, ctypes.byref(size))
-            k.CloseHandle(hp)
-            if ok and Path(name.value).name.lower() in ("python.exe", "pythonw.exe"):
-                found.append(h)
-                return False
-        return True
-
-    u.EnumWindows(cb, 0)
-    return found[0] if found else 0
-
 try:  # タスクバーでPythonではなく専用アイコンとして表示する
-    ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID("ShoenNavi.App")
+    ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(APP_ID)
 except Exception:
     pass
 

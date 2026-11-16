@@ -1,6 +1,6 @@
-﻿"""荘園ナビのアイコン (icon.ico / web/icon.png / web/icon-1024.png) を生成する。
+﻿"""荘園手記のアイコン (icon.ico / web/icon.png / web/icon-1024.png) を生成する。
 
-デザイン: 夜の濃紺に、金の細線で「荘園の門 (ゴシックの尖頭アーチ)」と「導きの星」。
+デザイン: 夜の濃紺に、金で縁取った革装の「手記」。表紙に荘園の門(尖頭アーチ)と星の紋章、深紅のしおり紐。
 シンプル・高コントラストで、小さいサイズでも形が分かるようにする。
 """
 import math
@@ -52,36 +52,61 @@ def draw(small=False, full=False):
     mask = Image.new("L", (S, S), 0)
     ImageDraw.Draw(mask).rounded_rectangle([0, 0, S - 1, S - 1], radius=0 if full else int(S * 0.225), fill=255)
     im.paste(grad, (0, 0), mask)
-    # 門の後ろにほのかな光
+    # 本の後ろにほのかな光
     glow = Image.new("RGBA", (S, S), (0, 0, 0, 0))
-    ImageDraw.Draw(glow).ellipse([S * .22, S * .2, S * .78, S * .86], fill=GOLD + (36,))
-    im.alpha_composite(glow.filter(ImageFilter.GaussianBlur(S * .08)))
-
+    ImageDraw.Draw(glow).ellipse([S * .2, S * .16, S * .8, S * .88], fill=GOLD + (34,))
+    im.alpha_composite(glow.filter(ImageFilter.GaussianBlur(S * .09)))
     d = ImageDraw.Draw(im)
-    lw = S * (0.058 if small else 0.036)
-    x0, x1 = S * 0.29, S * 0.71
-    ys, yb = S * 0.57, S * 0.80
-    R = S * 0.34
+    lw = S * (0.05 if small else 0.026)
+    bx0, by0, bx1, by1 = S * 0.25, S * 0.15, S * 0.73, S * 0.83   # 表紙
+    rad = S * 0.045
 
-    def ring(xa, xb, rr, w, alpha):
-        """尖頭アーチの枠 (外形から内形をくり抜く) を金で塗る"""
-        m = Image.new("L", (S, S), 0)
-        md = ImageDraw.Draw(m)
-        out, _ = arch_points(xa, xb, ys, rr)
-        md.polygon([(xa, yb)] + out + [(xb, yb)], fill=255)
-        inn, _ = arch_points(xa + w, xb - w, ys, rr - w)
-        md.polygon([(xa + w, yb + 1)] + inn + [(xb - w, yb + 1)], fill=0)
-        im.paste(Image.new("RGBA", (S, S), GOLD + (alpha,)), (0, 0), m)
+    def rrect_ring(box, r, w, fill_rgba, inner_rgba=None):
+        m = Image.new("L", (S, S), 0); md = ImageDraw.Draw(m)
+        md.rounded_rectangle(box, radius=r, fill=255)
+        if inner_rgba is None:
+            md.rounded_rectangle([box[0] + w, box[1] + w, box[2] - w, box[3] - w], radius=max(1, r - w), fill=0)
+        im.paste(Image.new("RGBA", (S, S), fill_rgba), (0, 0), m)
 
-    ring(x0, x1, R, lw, 255)
-    _, ya = arch_points(x0, x1, ys, R)
+    # ページの小口 (表紙の右にのぞく紙)
     if not small:
-        ring(x0 + S * 0.075, x1 - S * 0.075, R - S * 0.075, lw * 0.42, 130)
-        d.rectangle([S / 2 - lw * 0.28, ya + S * 0.17, S / 2 + lw * 0.28, yb], fill=GOLD + (190,))
-    # 地面の線
-    d.rounded_rectangle([S * 0.22, yb - lw * 0.1, S * 0.78, yb + lw * 0.9], radius=int(lw * 0.45), fill=GOLD + (255,))
-    # 導きの星
-    star(d, S / 2, S * 0.135, S * (0.10 if small else 0.075), S * (0.028 if small else 0.018), (255, 236, 190, 255))
+        d.rounded_rectangle([bx1 - S * .02, by0 + S * .03, bx1 + S * .035, by1 - S * .03], radius=int(S * .02), fill=(226, 214, 186, 255))
+        for i in range(1, 6):
+            y = by0 + S * .03 + (by1 - by0 - S * .06) * i / 6
+            d.line([(bx1 - S * .005, y), (bx1 + S * .03, y)], fill=(176, 160, 128, 255), width=int(S * .004))
+    # 革の表紙 (縦グラデーション)
+    leather = Image.new("RGBA", (1, S))
+    for y in range(S):
+        t = y / (S - 1)
+        leather.putpixel((0, y), (int(64 - 26 * t), int(36 - 14 * t), int(40 - 16 * t), 255))
+    leather = leather.resize((S, S))
+    m = Image.new("L", (S, S), 0)
+    ImageDraw.Draw(m).rounded_rectangle([bx0, by0, bx1, by1], radius=int(rad), fill=255)
+    im.paste(leather, (0, 0), m)
+    # 金の縁
+    rrect_ring([bx0, by0, bx1, by1], rad, lw, GOLD + (255,))
+    # 背表紙の線
+    sx = bx0 + S * (0.085 if small else 0.07)
+    d.rectangle([sx - lw * .35, by0 + lw, sx + lw * .35, by1 - lw], fill=GOLD + (255,))
+    cx = (sx + bx1) / 2
+    if not small:
+        # 内側の細い飾り枠
+        rrect_ring([sx + S * .035, by0 + S * .045, bx1 - S * .04, by1 - S * .045], S * .02, lw * .4, GOLD + (120,))
+    # 表紙の紋章: 尖頭アーチ + 星
+    aw = S * (0.20 if small else 0.15)
+    ys, yb = S * (0.55 if small else 0.56), S * (0.68 if small else 0.67)
+    m = Image.new("L", (S, S), 0); md = ImageDraw.Draw(m)
+    out, ya = arch_points(cx - aw / 2, cx + aw / 2, ys, aw * 0.82)
+    md.polygon([(cx - aw / 2, yb)] + out + [(cx + aw / 2, yb)], fill=255)
+    w2 = lw * (1.0 if small else 0.9)
+    inn, _ = arch_points(cx - aw / 2 + w2, cx + aw / 2 - w2, ys, aw * 0.82 - w2)
+    md.polygon([(cx - aw / 2 + w2, yb - w2)] + inn + [(cx + aw / 2 - w2, yb - w2)], fill=0)
+    im.paste(Image.new("RGBA", (S, S), GOLD + (255,)), (0, 0), m)
+    star(d, cx, ya - S * (0.075 if small else 0.06), S * (0.07 if small else 0.05), S * (0.02 if small else 0.013), (255, 236, 190, 255))
+    # しおり紐 (深紅)
+    rx, rw = bx1 - S * 0.14, S * (0.05 if small else 0.04)
+    rb = by1 + S * (0.09 if small else 0.08)
+    d.polygon([(rx - rw / 2, by1 - lw), (rx + rw / 2, by1 - lw), (rx + rw / 2, rb), (rx, rb - rw * 0.7), (rx - rw / 2, rb)], fill=(168, 44, 52, 255))
     return im
 
 

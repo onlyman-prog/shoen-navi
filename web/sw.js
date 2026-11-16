@@ -1,5 +1,5 @@
 // オフラインでも開けるようにするキャッシュ (画面ファイルは更新優先、画像はキャッシュ優先)
-const CACHE = "shoen-navi-v1";
+const CACHE = "shoen-shuki-v1";
 const CORE = ["./", "index.html", "app.js", "style.css", "pwa.js", "data.json", "manifest.webmanifest", "icon-192.png"];
 
 self.addEventListener("install", (e) => {

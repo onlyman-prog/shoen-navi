@@ -43,7 +43,7 @@ def main():
         src.resize((s, s), Image.LANCZOS).save(OUT / name)
     shutil.copy(WEB / "icon.png", OUT / "icon.png")
     (OUT / "manifest.webmanifest").write_text(json.dumps({
-        "name": "荘園ナビ", "short_name": "荘園ナビ", "start_url": "./", "scope": "./", "display": "standalone",
+        "name": "荘園手記 — Manor Notes", "short_name": "荘園手記", "start_url": "./", "scope": "./", "display": "standalone",
         "background_color": "#14161c", "theme_color": "#14161c", "lang": "ja",
         "icons": [{"src": "icon-192.png", "sizes": "192x192", "type": "image/png"},
                   {"src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable"}],
@@ -55,7 +55,7 @@ def main():
             '<meta name="apple-mobile-web-app-capable" content="yes">\n'
             '<meta name="mobile-web-app-capable" content="yes">\n'
             '<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">\n'
-            '<meta name="apple-mobile-web-app-title" content="荘園ナビ">\n'
+            '<meta name="apple-mobile-web-app-title" content="荘園手記">\n'
             '<meta name="theme-color" content="#14161c">\n'
             '<link rel="manifest" href="manifest.webmanifest">\n'
             '<link rel="apple-touch-icon" href="apple-touch-icon.png">\n'
@@ -85,7 +85,7 @@ PWA_CSS = """
 .pwa .ch, .pwa .mchip, .pwa button, .pwa .pl, .pwa .ph { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent; }
 /* タブは画面下 (親指で押しやすい iOS 風) */
 .pwa header { min-height: 44px; backdrop-filter: none; -webkit-backdrop-filter: none; background: var(--bg); }
-.pwa header::before { content: "荘園ナビ"; flex: 1; padding-left: 14px; font: 700 18px/1 var(--serif); letter-spacing: .14em;
+.pwa header::before { content: "荘園手記"; flex: 1; padding-left: 14px; font: 700 18px/1 var(--serif); letter-spacing: .14em;
   background: linear-gradient(180deg, #fff, var(--gold1) 50%, var(--gold2)); -webkit-background-clip: text; background-clip: text; color: transparent; }
 .pwa #tabs { position: fixed; left: 0; right: 0; bottom: 0; z-index: 7; flex: none;
   background: rgba(14, 16, 21, .9); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);

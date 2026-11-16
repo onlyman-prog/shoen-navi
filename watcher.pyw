@@ -1,4 +1,4 @@
-"""ゲーム(IdentityV)の起動を監視して、荘園ナビを自動で開く常駐スクリプト。
+"""ゲーム(IdentityV)の起動を監視して、荘園手記を自動で開く常駐スクリプト。
 
 Windowsのスタートアップに登録して使う (自動起動の設定.bat)。
 ゲームごとに1回だけ開く。ゲーム中にアプリを手動で閉じた場合は再度開かない。
@@ -10,6 +10,8 @@ import time
 from pathlib import Path
 
 ROOT = Path(__file__).parent
+sys.path.insert(0, str(ROOT))
+from winutil import find_app_window  # noqa: E402
 user32 = ctypes.windll.user32
 
 
@@ -27,7 +29,7 @@ def main():
     while True:
         game = exists("IdentityV")
         if game and not launched:
-            if not exists("荘園ナビ"):
+            if not find_app_window():
                 subprocess.Popen([str(pyw), str(ROOT / "app.py"), "--auto"], cwd=str(ROOT))
             launched = True
         elif not game:
