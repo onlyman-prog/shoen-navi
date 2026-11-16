@@ -113,8 +113,21 @@ class Api:
         return True
 
     def set_on_top(self, value):
-        self._window.on_top = bool(value)
-        self._set("on_top", bool(value))
+        """最前面の切替。pywebview の on_top を JS 呼び出し中に変えると固まることがあるので、
+        Win32 の SetWindowPos を別スレッドで直接呼ぶ (呼び出し元を待たせない)。"""
+        on = bool(value)
+
+        def apply():
+            hwnd = find_app_window()
+            if hwnd:
+                SWP_NOSIZE, SWP_NOMOVE, SWP_NOACTIVATE = 0x1, 0x2, 0x10
+                swp = ctypes.windll.user32.SetWindowPos
+                swp.argtypes = [wintypes.HWND, wintypes.HWND, ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_uint]
+                swp.restype = wintypes.BOOL
+                # HWND_TOPMOST(-1) / HWND_NOTOPMOST(-2) はポインタ型で渡す (64bit で int のままだと効かない)
+                swp(hwnd, wintypes.HWND(-1 if on else -2), 0, 0, 0, 0, SWP_NOSIZE | SWP_NOMOVE | SWP_NOACTIVATE)
+        threading.Thread(target=apply, daemon=True).start()
+        self._set("on_top", on)
 
     def set_pool(self, names):
         """ハンター視点: 自分が使うハンター(マイハンター)を保存。"""
