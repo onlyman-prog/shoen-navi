@@ -85,7 +85,8 @@ PWA_CSS = """
 .pwa .ch, .pwa .mchip, .pwa button, .pwa .pl, .pwa .ph { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent; }
 /* タブは画面下 (親指で押しやすい iOS 風) */
 .pwa header { min-height: 44px; backdrop-filter: none; -webkit-backdrop-filter: none; background: var(--bg); }
-.pwa header::before { content: "荘園ナビ"; flex: 1; padding-left: 14px; font-weight: 800; font-size: 16px; letter-spacing: .06em; color: var(--text); }
+.pwa header::before { content: "荘園ナビ"; flex: 1; padding-left: 14px; font: 700 18px/1 var(--serif); letter-spacing: .14em;
+  background: linear-gradient(180deg, #fff, var(--gold1) 50%, var(--gold2)); -webkit-background-clip: text; background-clip: text; color: transparent; }
 .pwa #tabs { position: fixed; left: 0; right: 0; bottom: 0; z-index: 7; flex: none;
   background: rgba(14, 16, 21, .9); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
   border-top: 1px solid var(--line); padding: 4px 6px env(safe-area-inset-bottom); }

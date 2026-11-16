@@ -349,3 +349,98 @@ footer { background: transparent; border-top: 1px solid var(--line); }
 @media (hover: hover) and (pointer: fine) {
   .mapsel { flex-wrap: wrap; overflow: visible; }
 }
+
+/* ふりがな */
+rt { font-size: .55em; font-weight: 500; color: #c9c3b2; letter-spacing: 0; }
+.pl ruby { ruby-position: over; }
+.pl rt { font-size: .5em; color: #e9dfc4; }
+.pl.hi rt { color: #3a2f15; }
+
+/* =========================================================
+   テーマ v3: ゴシック・ノワール (明朝の見出し / 金の細線 / 奥行き)
+   ========================================================= */
+:root {
+  --serif: "Yu Mincho", "YuMincho", "Hiragino Mincho ProN", "Hiragino Mincho Pro", "Noto Serif JP", serif;
+  --gold1: #f3dfae; --gold2: #c9a35c; --gold3: #8a6a32;
+  --goldline: linear-gradient(90deg, transparent, rgba(220,189,124,.55) 20%, rgba(220,189,124,.55) 80%, transparent);
+}
+body {
+  background:
+    radial-gradient(90% 50% at 50% -8%, rgba(220,189,124,.10), transparent 60%),
+    radial-gradient(120% 80% at 50% 120%, rgba(60,70,110,.12), transparent 60%),
+    linear-gradient(#0f1117, #0b0c10) fixed;
+}
+/* 金の極細ライン */
+header { border-bottom: 0; box-shadow: 0 1px 0 rgba(220,189,124,.18); }
+
+/* ティア見出し: 明朝の大きな文字 + 金のライン */
+h4.grp { margin: 18px 0 10px; gap: 10px; align-items: baseline; }
+h4.grp .tl { font: 700 22px/1 var(--serif); letter-spacing: .02em;
+  background: linear-gradient(180deg, #fff 0%, var(--tc, var(--gold1)) 55%, color-mix(in srgb, var(--tc, var(--gold2)) 60%, #000) 100%);
+  -webkit-background-clip: text; background-clip: text; color: transparent; filter: drop-shadow(0 2px 6px rgba(0,0,0,.6)); }
+h4.grp .tn { font: 600 11px/1 var(--serif); color: #b9b2a0; letter-spacing: .18em; }
+h4.grp small { order: 3; font: 600 10px/1 sans-serif; color: var(--sub); background: var(--panel); border-radius: 999px; padding: 3px 7px; }
+h4.grp::after { order: 2; height: 1px; background: linear-gradient(90deg, rgba(220,189,124,.45), transparent); align-self: center; }
+h4.grp.t-S { --tc: #ff8f84; } h4.grp.t-A { --tc: #f6b46d; } h4.grp.t-B { --tc: #ecd27a; } h4.grp.t-C { --tc: #8cc0ef; } h4.grp.t-D { --tc: #9aa0ad; }
+
+/* キャラアイコン: 額縁風 + 押した感触 */
+.grid { gap: 10px 4px; }
+.ch img { border-radius: 14px; box-shadow: 0 0 0 1px rgba(220,189,124,.16), 0 6px 14px rgba(0,0,0,.45); transition: transform .18s ease, box-shadow .18s ease; }
+.ch:hover { background: transparent; }
+.ch:hover img { transform: translateY(-2px); box-shadow: 0 0 0 1px rgba(220,189,124,.55), 0 10px 22px rgba(0,0,0,.55), 0 0 18px rgba(220,189,124,.18); }
+.ch:active img { transform: scale(.94); }
+.ch span { font-size: 10.5px; color: #b8bcc6; }
+
+/* タブ */
+#tabs button { letter-spacing: .06em; }
+#tabs button.on { color: var(--gold1); }
+#tabs button.on svg { filter: drop-shadow(0 0 6px rgba(220,189,124,.55)); }
+#tabs button.on::after { background: linear-gradient(90deg, var(--gold3), var(--gold1), var(--gold3)); box-shadow: 0 0 8px rgba(220,189,124,.6); }
+
+/* 検索 */
+#q { background: rgba(255,255,255,.035); border-color: rgba(255,255,255,.07); }
+.tchip { border-color: rgba(255,255,255,.08); font-family: var(--serif); }
+
+/* 詳細画面: キャラ画像をぼかした大きなヒーロー */
+#detail:not([hidden]) { animation: dIn .22s cubic-bezier(.2,.8,.2,1); }
+@keyframes dIn { from { opacity: 0; transform: translateX(14px); } to { opacity: 1; transform: none; } }
+.dhead { position: relative; overflow: hidden; padding: 16px 12px 14px; border-bottom: 0; box-shadow: 0 1px 0 rgba(220,189,124,.2); background: #0f1117; }
+.dhead::before { content: ""; position: absolute; inset: -30px; background: var(--hero) center 30% / cover no-repeat;
+  filter: blur(22px) saturate(1.2) brightness(.55); transform: scale(1.1); opacity: .9; }
+.dhead::after { content: ""; position: absolute; inset: 0; background: linear-gradient(180deg, rgba(10,11,15,.15), rgba(10,11,15,.85)); }
+.dhead > * { position: relative; z-index: 1; }
+#calib-view .dhead::before { display: none; }
+#dtitle img { width: 64px; height: 64px; border-radius: 16px; box-shadow: 0 0 0 1px rgba(243,223,174,.5), 0 8px 20px rgba(0,0,0,.6); }
+#dtitle img.wide { width: 120px; }
+#dtitle .nm { font: 700 20px/1.2 var(--serif); letter-spacing: .04em; text-shadow: 0 2px 10px rgba(0,0,0,.7); }
+#dtitle .src { color: #cfc6b0; }
+
+/* セクション見出し: 金の小見出し */
+#dbody .lbl { font-family: var(--serif); font-size: 12px; font-weight: 700; letter-spacing: .12em; color: #d9cfb6; }
+#dbody .sec > .lbl::before { content: ""; width: 3px; height: 12px; border-radius: 2px; background: linear-gradient(var(--gold1), var(--gold3)); margin-right: 2px; }
+.cnbox { background: linear-gradient(180deg, rgba(255,255,255,.035), rgba(255,255,255,.015)); box-shadow: 0 0 0 1px rgba(220,189,124,.14); }
+.cnrow b { color: var(--gold1); }
+
+/* マップカード: 画像に名前を重ねる */
+.maps { gap: 10px; }
+.mp { position: relative; border-radius: 14px; overflow: hidden; box-shadow: 0 0 0 1px rgba(220,189,124,.14), 0 8px 18px rgba(0,0,0,.45); transition: transform .18s; }
+.mp:hover { transform: translateY(-2px); }
+.mp img { aspect-ratio: 16/9; filter: saturate(.85) brightness(.85); }
+.mp > div { position: absolute; left: 0; right: 0; bottom: 0; padding: 18px 10px 7px; align-items: flex-end;
+  background: linear-gradient(180deg, transparent, rgba(8,9,12,.92)); font: 700 14px/1.2 var(--serif); letter-spacing: .06em; }
+.mrow .mp > div { font-size: 11px; padding: 12px 6px 4px; }
+.mp small.wr { font-family: sans-serif; font-size: 10px; color: #ffb0a8; }
+
+/* 地名タブ */
+.mapsel button { font-family: var(--serif); letter-spacing: .06em; }
+.mapsel button.on { background: linear-gradient(180deg, var(--gold1), var(--gold2)); box-shadow: 0 4px 14px rgba(220,189,124,.25); }
+.pmap { border-radius: 16px; box-shadow: 0 0 0 1px rgba(220,189,124,.22), 0 14px 34px rgba(0,0,0,.55); }
+.pl { font-family: var(--serif); letter-spacing: .03em; }
+.pct { font-family: var(--serif); letter-spacing: .1em; }
+.pcard { background: linear-gradient(180deg, rgba(255,255,255,.035), rgba(255,255,255,.012)); box-shadow: 0 0 0 1px rgba(220,189,124,.12); }
+.seg button.on { background: linear-gradient(180deg, var(--gold1), var(--gold2)); }
+
+/* 一覧の表示アニメーション */
+main > .grid, main > .maps, main > .place, main > h4 { animation: fadeUp .25s ease both; }
+@keyframes fadeUp { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }

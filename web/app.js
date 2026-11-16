@@ -106,12 +106,15 @@ function render() {
     if (c.tier !== cur) {
       if (cur !== null) html += "</div>";
       cur = c.tier;
-      html += `<h4 class="grp"><b class="tier ${cur}">${cur}</b></h4><div class="grid">`;
+      const n = cs.filter((x) => x.tier === cur).length;
+      html += `<h4 class="grp t-${cur}"><span class="tl">${cur}</span><span class="tn">${TIER_LABEL[cur] || ""}</span><small>${n}</small></h4><div class="grid">`;
     }
     html += chHTML(c, { tier: false });
   }
   list.innerHTML = html + (cur !== null ? "</div>" : '<p class="none">該当なし</p>');
 }
+
+const TIER_LABEL = { S: "環境トップ", A: "強力", B: "標準", C: "やや不利", D: "厳しい" };
 
 // 中国版公式データ
 const cnMap = (name) => (D.cn && D.cn.map && D.cn.map.maps ? D.cn.map.maps[name] : null);
@@ -149,13 +152,20 @@ function mapByName(name) { return mapList().find((m) => m.name === name); }
 
 // 地名・ハッチガイド
 const MN = (name) => (D.mapNames && D.mapNames.maps ? D.mapNames.maps[name] : null);
+// 読みにくい地名にふりがな
+const FURI = { 旧妓楼: "きゅうぎろう", 妓楼: "ぎろう", 槐樹: "かいじゅ", 酔芳庭: "すいほうてい", 紙飾屋: "かみかざりや", 獅子楼: "ししろう",
+  酒楼: "しゅろう", 赤傘巷: "あかがさこう", 裁縫屋: "さいほうや", 骨董屋: "こっとうや", 浅瀬: "あさせ", 東屋: "あずまや", 石浜: "いしはま",
+  積卸: "つみおろし", 廃墟: "はいきょ", 彫像: "ちょうぞう", 狩人: "かりゅうど", 監視所: "かんしじょ", 野営地: "やえいち", 始発駅: "しはつえき",
+  廃材: "はいざい", 最果て: "さいはて", 飼育: "しいく", 貨物: "かもつ", 箱詰め: "はこづめ" };
+const FURI_RE = new RegExp(Object.keys(FURI).sort((a, b) => b.length - a.length).join("|"), "g");
+const furi = (t) => esc(t).replace(FURI_RE, (w) => `<ruby>${w}<rt>${FURI[w]}</rt></ruby>`);
 let placeMap = "";      // 地名タブで表示中のマップ
 let placeLayer = "all"; // all | hatch | base | gate
 // 地図の上に地名・ハッチ・地下室・ゲートを重ねる (文字は画面幅に合わせて自動で拡大縮小)
 function mapOverlay(g, cls = "") {
   const L = g.layout;
   if (!L) return `<img class="pimg" src="${esc(g.img)}" data-zoom="${esc(g.img)}" alt="">`;
-  const lab = L.labels.map((l) => `<span class="pl${l.basement ? " is-base" : ""}${l.gate ? " is-gate" : ""}" data-area="${esc(l.name)}" style="left:${l.x}%;top:${l.y}%">${esc(l.name)}${
+  const lab = L.labels.map((l) => `<span class="pl${l.basement ? " is-base" : ""}${l.gate ? " is-gate" : ""}" data-area="${esc(l.name)}" style="left:${l.x}%;top:${l.y}%">${furi(l.name)}${
     l.basement ? '<i class="tb">地下室</i>' : ""}${l.gate ? `<i class="tg">${esc(l.gate.replace("ゲート", ""))}</i>` : ""}</span>`).join("");
   const hat = L.hatches.map((h, i) => `<b class="ph" data-hi="${i}" style="left:${h.x}%;top:${h.y}%" title="${esc("ハッチ → チャットで「" + h.area + "」" + (h.nick ? "\n通称: " + h.nick : ""))}"></b>`).join("");
   return `<div class="pmap ${cls}" data-layer="${placeLayer}" style="aspect-ratio:${L.w}/${L.h}"><img src="${esc(L.base)}" alt="" loading="lazy">${lab}${hat}</div>`;
@@ -169,10 +179,10 @@ function placeHTML(name, full) {
     <div class="seg pseg">${layers.map(([k, t]) => `<button data-layer="${k}" class="${placeLayer === k ? "on" : ""}">${t}</button>`).join("")}</div>
     <div class="pcards">
       <div class="pcard"><div class="pct"><i class="dot h"></i>ハッチ<small>タップで場所を表示 ・ チャットで選ぶ地名</small></div>
-        ${g.hatches.map((h, i) => `<button class="prow" data-hi="${i}"><b>${esc(h.area)}</b>${h.nick ? `<small>通称「${esc(h.nick)}」</small>` : ""}</button>`).join("")}</div>
+        ${g.hatches.map((h, i) => `<button class="prow" data-hi="${i}"><b>${furi(h.area)}</b>${h.nick ? `<small>通称「${esc(h.nick)}」</small>` : ""}</button>`).join("")}</div>
       ${g.basement.length ? `<div class="pcard"><div class="pct"><i class="dot b"></i>地下室<small>どちらかに出現</small></div>
-        ${g.basement.map((b) => `<button class="prow" data-area="${esc(b)}"><b>${esc(b)}</b></button>`).join("")}</div>` : ""}
-      ${g.tips.length ? `<div class="pcard tips">${g.tips.map((t) => `<p>${esc(t)}</p>`).join("")}</div>` : ""}
+        ${g.basement.map((b) => `<button class="prow" data-area="${esc(b)}"><b>${furi(b)}</b></button>`).join("")}</div>` : ""}
+      ${g.tips.length ? `<div class="pcard tips">${g.tips.map((t) => `<p>${furi(t)}</p>`).join("")}</div>` : ""}
     </div>
   </div>`;
 }
@@ -715,6 +725,7 @@ function showDetail(key, replace) {
     const st = cnMap(m.name);
     const links = Object.entries(m.sources || {}).filter(([, v]) => v.url)
       .map(([k, v]) => `<span class="src" data-url="${esc(v.url)}">${esc(k)}</span>`).join(" ");
+    $("#detail").style.setProperty("--hero", `url("${sz(m.img, 640)}")`);
     title.innerHTML = `<img class="wide" src="${esc(sz(m.img, 320))}" alt=""><div><div class="nm">${esc(m.name)} ${adv}</div><div class="srcs">${links}</div></div>`;
     body.innerHTML = `
       ${m.trait ? `<p class="trait">${esc(m.trait)}</p>` : ""}
@@ -732,6 +743,7 @@ function showDetail(key, replace) {
   const c = D.chars[key];
   if (!c) return goBack();
   const isS = c.side === "s";
+  $("#detail").style.setProperty("--hero", `url("${c.img.startsWith("gi/") ? c.img : sz(c.img, 256)}")`);
   title.innerHTML = `<img src="${esc(sz(c.img, 128))}" alt=""><div>
     <div class="nm">${esc(c.name)} <b class="tier ${c.tier}">${c.tier}</b></div>
     <span class="src" data-url="${esc(c.url)}">神ゲー攻略</span> <span class="src" data-url="${esc(c.wiki || "")}">5chWiki</span></div>`;
