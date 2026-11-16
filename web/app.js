@@ -495,12 +495,12 @@ window.onIcons = () => {
 };
 
 let toastT;
-function toast(msg) {
+function toast(msg, ms = 3500) {
   const el = $("#toast");
   el.textContent = msg;
   el.hidden = false;
   clearTimeout(toastT);
-  toastT = setTimeout(() => (el.hidden = true), 3500);
+  toastT = setTimeout(() => (el.hidden = true), ms);
 }
 
 /* ---------- BAN枠の設定 ---------- */
@@ -935,5 +935,6 @@ $("#pin").addEventListener("click", () => {
   const on = !$("#pin").classList.contains("on");
   $("#pin").classList.toggle("on", on);
   api() && api().set_on_top(on);
+  toast(`最前面に固定：${on ? "オン" : "オフ"}`, 1500);
 });
 $("#reload").addEventListener("click", () => api() && api().refresh());
