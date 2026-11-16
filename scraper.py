@@ -288,7 +288,7 @@ def build(progress=None, workers=4):
         mn_def = json.loads((here / "data" / "mapnames.json").read_text(encoding="utf-8"))
         mn_info = json.loads((here / "web" / "mapnames" / "info.json").read_text(encoding="utf-8"))
         map_names = {"source": mn_def.get("_source", ""), "maps": {
-            v["name"]: {"key": k, "img": f"mapnames/{k}.jpg", "hatches": mn_info[k], "tips": v.get("tips", []),
+            v["name"]: {"key": k, "img": f"mapnames/{k}.jpg", "hatches": mn_info[k]["hatches"], "layout": mn_info[k], "tips": v.get("tips", []),
                         "basement": v.get("basement", []), "areas": [l[0] for l in v["labels"]]}
             for k, v in mn_def.items() if not k.startswith("_") and k in mn_info}}
     except Exception as e:

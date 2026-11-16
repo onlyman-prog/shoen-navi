@@ -149,23 +149,53 @@ function mapByName(name) { return mapList().find((m) => m.name === name); }
 
 // 地名・ハッチガイド
 const MN = (name) => (D.mapNames && D.mapNames.maps ? D.mapNames.maps[name] : null);
+let placeMap = "";      // 地名タブで表示中のマップ
+let placeLayer = "all"; // all | hatch | base | gate
+// 地図の上に地名・ハッチ・地下室・ゲートを重ねる (文字は画面幅に合わせて自動で拡大縮小)
+function mapOverlay(g, cls = "") {
+  const L = g.layout;
+  if (!L) return `<img class="pimg" src="${esc(g.img)}" data-zoom="${esc(g.img)}" alt="">`;
+  const lab = L.labels.map((l) => `<span class="pl${l.basement ? " is-base" : ""}${l.gate ? " is-gate" : ""}" data-area="${esc(l.name)}" style="left:${l.x}%;top:${l.y}%">${esc(l.name)}${
+    l.basement ? '<i class="tb">地下室</i>' : ""}${l.gate ? `<i class="tg">${esc(l.gate.replace("ゲート", ""))}</i>` : ""}</span>`).join("");
+  const hat = L.hatches.map((h, i) => `<b class="ph" data-hi="${i}" style="left:${h.x}%;top:${h.y}%" title="${esc("ハッチ → チャットで「" + h.area + "」" + (h.nick ? "\n通称: " + h.nick : ""))}"></b>`).join("");
+  return `<div class="pmap ${cls}" data-layer="${placeLayer}" style="aspect-ratio:${L.w}/${L.h}"><img src="${esc(L.base)}" alt="" loading="lazy">${lab}${hat}</div>`;
+}
 function placeHTML(name, full) {
   const g = MN(name);
   if (!g) return "";
-  return `<div class="place">
-    ${full ? "" : `<div class="pname">${esc(name)}</div>`}
-    <img src="${esc(g.img)}" data-zoom="${esc(g.img)}" loading="lazy" alt="${esc(name)}">
-    <div class="hlist"><span class="hl">ハッチ→チャットで選ぶ地名</span>${g.hatches.map((h) => `<span class="hc"><b>${esc(h.area)}</b>${h.nick ? `<small>通称 ${esc(h.nick)}</small>` : ""}</span>`).join("")}</div>
-    ${g.basement.length ? `<div class="hlist"><span class="hl bm">地下室</span>${g.basement.map((b) => `<span class="hc"><b>${esc(b)}</b></span>`).join("")}</div>` : ""}
-    ${g.tips.length ? `<ul class="ptips">${g.tips.map((t) => `<li>${esc(t)}</li>`).join("")}</ul>` : ""}
+  const layers = [["all", "すべて"], ["hatch", "ハッチ"], ["base", "地下室"], ["gate", "ゲート"]];
+  return `<div class="place" data-place="${esc(name)}">
+    <div class="pmapwrap">${mapOverlay(g)}<button class="pzoom" data-mz="${esc(name)}" aria-label="拡大"><svg viewBox="0 0 24 24"><path d="M14 4h6v6M10 20H4v-6M20 4l-6.5 6.5M4 20l6.5-6.5"/></svg></button></div>
+    <div class="seg pseg">${layers.map(([k, t]) => `<button data-layer="${k}" class="${placeLayer === k ? "on" : ""}">${t}</button>`).join("")}</div>
+    <div class="pcards">
+      <div class="pcard"><div class="pct"><i class="dot h"></i>ハッチ<small>タップで場所を表示 ・ チャットで選ぶ地名</small></div>
+        ${g.hatches.map((h, i) => `<button class="prow" data-hi="${i}"><b>${esc(h.area)}</b>${h.nick ? `<small>通称「${esc(h.nick)}」</small>` : ""}</button>`).join("")}</div>
+      ${g.basement.length ? `<div class="pcard"><div class="pct"><i class="dot b"></i>地下室<small>どちらかに出現</small></div>
+        ${g.basement.map((b) => `<button class="prow" data-area="${esc(b)}"><b>${esc(b)}</b></button>`).join("")}</div>` : ""}
+      ${g.tips.length ? `<div class="pcard tips">${g.tips.map((t) => `<p>${esc(t)}</p>`).join("")}</div>` : ""}
+    </div>
   </div>`;
 }
 function renderPlaces() {
   const names = Object.keys((D.mapNames && D.mapNames.maps) || {});
-  $("#list").innerHTML = names.length
-    ? `<p class="none">ゲーム内チャットの「エリア」タブで選べる地名です。画像タップで拡大。</p>${names.map((n) => placeHTML(n)).join("")}
-       <p class="none">出典: ${esc(D.mapNames.source || "")}</p>`
-    : '<p class="none">地名データなし</p>';
+  if (!names.length) return ($("#list").innerHTML = '<p class="none">地名データなし</p>');
+  if (!names.includes(placeMap)) placeMap = names[0];
+  $("#list").innerHTML = `<div class="mapsel">${names.map((n) => `<button class="${n === placeMap ? "on" : ""}" data-pm="${esc(n)}">${esc(n)}</button>`).join("")}</div>
+    ${placeHTML(placeMap)}
+    <p class="none">地名はゲーム内チャットの「エリア」タブで選べる公式名です。出典: ${esc(D.mapNames.source || "")}</p>`;
+}
+// ハッチ/地下室のハイライト
+function placeFocus(root, sel) {
+  root.querySelectorAll(".hi").forEach((x) => x.classList.remove("hi"));
+  sel.forEach((x) => x && x.classList.add("hi"));
+  const m = root.querySelector(".pmap");
+  if (m && m.getBoundingClientRect().top < 40) m.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+function openMapZoom(name) {
+  const g = MN(name);
+  if (!g) return;
+  $("#mapzoom .mzscroll").innerHTML = mapOverlay(g, "big");
+  $("#mapzoom").hidden = false;
 }
 function renderMaps() {
   $("#list").innerHTML = `<div class="maps">${mapList().map(mapHTML).join("")}</div>`;
@@ -788,6 +818,30 @@ document.addEventListener("click", (e) => {
     $("#build").innerHTML = buildHTML($("#dbody")._builds[+bb.dataset.b]);
     return;
   }
+  const pm = e.target.closest("[data-pm]");
+  if (pm) { placeMap = pm.dataset.pm; renderPlaces(); return pm.scrollIntoView({ inline: "center", block: "nearest" }); }
+  if (e.target.closest(".mzclose")) return ($("#mapzoom").hidden = true);
+  const mz = e.target.closest("[data-mz]");
+  if (mz) return openMapZoom(mz.dataset.mz);
+  const ly = e.target.closest(".pseg [data-layer]");
+  if (ly) {
+    placeLayer = ly.dataset.layer;
+    const root = ly.closest(".place");
+    root.querySelectorAll(".pseg button").forEach((b) => b.classList.toggle("on", b === ly));
+    root.querySelector(".pmap").dataset.layer = placeLayer;
+    return;
+  }
+  const hi = e.target.closest(".place [data-hi], .place [data-area]");
+  if (hi) {
+    const root = hi.closest(".place");
+    const g = MN(root.dataset.place);
+    if (hi.dataset.hi != null) {
+      const h = g.hatches[+hi.dataset.hi];
+      return placeFocus(root, [root.querySelector(`.ph[data-hi="${hi.dataset.hi}"]`), root.querySelector(`.pl[data-area="${CSS.escape(h.area)}"]`), root.querySelector(`.prow[data-hi="${hi.dataset.hi}"]`)]);
+    }
+    return placeFocus(root, [root.querySelector(`.pl[data-area="${CSS.escape(hi.dataset.area)}"]`), hi.classList.contains("prow") ? hi : root.querySelector(`.prow[data-area="${CSS.escape(hi.dataset.area)}"]`)]);
+  }
+  if (e.target.closest(".pmapwrap .pmap")) return openMapZoom(e.target.closest(".place").dataset.place);
   const mp = e.target.closest("[data-map]");
   if (mp) return showDetail("map:" + mp.dataset.map);
   const ch = e.target.closest("[data-ch]");
@@ -803,7 +857,8 @@ document.addEventListener("click", (e) => {
 $("#back").addEventListener("click", goBack);
 document.addEventListener("keydown", (e) => {
   if (e.key === "Escape") {
-    if (!$("#calib-view").hidden) $("#calib-view").hidden = true;
+    if (!$("#mapzoom").hidden) $("#mapzoom").hidden = true;
+    else if (!$("#calib-view").hidden) $("#calib-view").hidden = true;
     else if (!$("#zoom").hidden) $("#zoom").hidden = true;
     else if (!$("#detail").hidden) goBack();
   }

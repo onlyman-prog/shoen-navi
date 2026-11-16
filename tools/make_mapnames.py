@@ -53,6 +53,10 @@ def render(key, m, W=1100):
     base = cv2.resize(base, None, fx=s, fy=s, interpolation=cv2.INTER_AREA)
     base = cv2.convertScaleAbs(base, alpha=1.15, beta=8)
     H = base.shape[0]
+    OUT.mkdir(parents=True, exist_ok=True)
+    # 文字なしの土台 (アプリ側で地名を重ねて表示する用)。文字が映えるよう少し暗く
+    cv2.imencode(".jpg", cv2.convertScaleAbs(base, alpha=0.82, beta=0), [cv2.IMWRITE_JPEG_QUALITY, 82])[1].tofile(str(OUT / f"{key}_base.jpg"))
+    layout = []
     im = Image.fromarray(cv2.cvtColor(base, cv2.COLOR_BGR2RGB)).convert("RGBA")
     ov = Image.new("RGBA", im.size, (0, 0, 0, 0))
     dr = ImageDraw.Draw(ov)
@@ -82,6 +86,8 @@ def render(key, m, W=1100):
             return n + (abs(c[0] - cx0) + abs(c[1] - cy0)) / 200
         cx, cy = min([(cx0 + dx, cy0 + dy) for dx, dy in ((0, 0), (0, 40), (0, -40), (60, 0), (-60, 0), (50, 40), (-50, 40), (0, 76))], key=cost)
         boxes.append(text_box(dr, (cx, cy), name, fa, (255, 255, 255, 255), (20, 24, 40, 205)))
+        layout.append({"name": name, "x": round(cx / W * 100, 2), "y": round(cy / H * 100, 2),
+                       "basement": name in m.get("basement", []), "gate": m.get("gates", {}).get(name, "")})
         yy = cy + 30
         for t2, c in ([("地下室", (190, 60, 60, 235))] if name in m.get("basement", []) else []) +                      ([(m["gates"][name], (60, 110, 200, 235))] if name in m.get("gates", {}) else []):
             boxes.append(text_box(dr, (cx, yy), t2, f_small, (255, 255, 255, 255), c, pad=4))
@@ -94,7 +100,7 @@ def render(key, m, W=1100):
         if area in m.get("hatchArea", {}):
             area = m["hatchArea"][area]
         nick = names[i] if i < len(names) else ""
-        hinfo.append({"x": round(hx, 1), "y": round(hy, 1), "area": area, "nick": nick})
+        hinfo.append({"x": round(cx / W * 100, 2), "y": round(cy / H * 100, 2), "area": area, "nick": nick})
         dr.ellipse((cx - 18, cy - 18, cx + 18, cy + 18), fill=(255, 205, 40, 250), outline=(30, 20, 0, 255), width=3)
         dr.text((cx, cy + 1), "ハ", font=f_small, fill=(30, 20, 0, 255), anchor="mm")
         if nick:
@@ -112,7 +118,7 @@ def render(key, m, W=1100):
     im = Image.alpha_composite(im, ov).convert("RGB")
     OUT.mkdir(parents=True, exist_ok=True)
     im.save(OUT / f"{key}.jpg", quality=86)
-    return hinfo
+    return {"w": W, "h": H, "base": f"mapnames/{key}_base.jpg", "labels": layout, "hatches": hinfo}
 
 
 if __name__ == "__main__":
@@ -126,5 +132,5 @@ if __name__ == "__main__":
         if not (SRC / f"{k}_plain.png").exists():
             print("skip", k); continue
         info[k] = render(k, MAPS[k])
-        print(k, [(h["area"], h["nick"]) for h in info[k]])
+        print(k, [(h["area"], h["nick"]) for h in info[k]["hatches"]])
     json.dump(info, open(p, "w", encoding="utf-8"), ensure_ascii=False, indent=1)

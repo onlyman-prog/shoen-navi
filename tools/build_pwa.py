@@ -22,9 +22,9 @@ def key(name):  # vision.key と同じ
 def main():
     global VER
     data = json.loads((ROOT / "data" / "cache.json").read_text(encoding="utf-8"))
-    if OUT.exists():
-        shutil.rmtree(OUT)
-    OUT.mkdir()
+    OUT.mkdir(exist_ok=True)
+    for f in OUT.iterdir():  # フォルダごと消すと使用中で失敗することがあるので中身だけ消す
+        shutil.rmtree(f) if f.is_dir() else f.unlink()
     # 画像: ゲーム画面から集めたキャラ画像・地名ガイド
     for sub in ("gi", "mapnames"):
         if (WEB / sub).exists():
@@ -37,13 +37,10 @@ def main():
     VER = hashlib.md5((WEB / "app.js").read_bytes() + (WEB / "style.css").read_bytes()).hexdigest()[:8]
     for f in ("app.js", "style.css", "pwa.js", "sw.js"):
         shutil.copy(WEB / f, OUT / f)
-    # アイコン
-    src = Image.open(WEB / "icon.png").convert("RGBA")
+    # アイコン (OS が角を丸めるので角丸なしの版から作る)
+    src = Image.open(WEB / "icon-full.png").convert("RGB")
     for s, name in ((180, "apple-touch-icon.png"), (192, "icon-192.png"), (512, "icon-512.png")):
-        bg = Image.new("RGBA", (s, s), (20, 22, 28, 255))
-        ic = src.resize((int(s * 0.86),) * 2, Image.LANCZOS)
-        bg.alpha_composite(ic, ((s - ic.width) // 2,) * 2)
-        bg.convert("RGB").save(OUT / name)
+        src.resize((s, s), Image.LANCZOS).save(OUT / name)
     shutil.copy(WEB / "icon.png", OUT / "icon.png")
     (OUT / "manifest.webmanifest").write_text(json.dumps({
         "name": "荘園ナビ", "short_name": "荘園ナビ", "start_url": "./", "scope": "./", "display": "standalone",
@@ -80,15 +77,29 @@ def main():
 
 # iPhone 向けの見た目調整 (パソコン専用ボタンを隠す・ノッチ対応・タップしやすく)
 PWA_CSS = """
+/* パソコン専用のボタンを隠す */
 .pwa #pin, .pwa #readnow, .pwa #calib { display: none !important; }
-.pwa body { padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left); }
-.pwa #tabs button { font-size: 13px; padding: 11px 0; }
+.pwa body { -webkit-text-size-adjust: 100%; overscroll-behavior-y: none;
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) calc(58px + env(safe-area-inset-bottom)) env(safe-area-inset-left); }
 .pwa input, .pwa select { font-size: 16px; }
-.pwa body { -webkit-text-size-adjust: 100%; overscroll-behavior-y: none; }
-.pwa .ch, .pwa .mchip, .pwa button { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }
-#pwatip { position: fixed; left: 12px; right: 12px; bottom: calc(16px + env(safe-area-inset-bottom)); z-index: 99;
-  background: #262a36; color: #fff; border: 1px solid #3a4050; border-radius: 10px; padding: 10px 12px;
-  font-size: 13px; line-height: 1.5; white-space: pre-line; box-shadow: 0 6px 24px #0008;
+.pwa .ch, .pwa .mchip, .pwa button, .pwa .pl, .pwa .ph { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent; }
+/* タブは画面下 (親指で押しやすい iOS 風) */
+.pwa header { min-height: 44px; backdrop-filter: none; -webkit-backdrop-filter: none; background: var(--bg); }
+.pwa header::before { content: "荘園ナビ"; flex: 1; padding-left: 14px; font-weight: 800; font-size: 16px; letter-spacing: .06em; color: var(--text); }
+.pwa #tabs { position: fixed; left: 0; right: 0; bottom: 0; z-index: 7; flex: none;
+  background: rgba(14, 16, 21, .9); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+  border-top: 1px solid var(--line); padding: 4px 6px env(safe-area-inset-bottom); }
+.pwa #tabs button { font-size: 10px; padding: 6px 0 4px; gap: 3px; }
+.pwa #tabs button svg { width: 22px; height: 22px; }
+.pwa #tabs button.on::after { display: none; }
+.pwa #tabs button.on svg { filter: drop-shadow(0 0 6px rgba(220,189,124,.45)); }
+.pwa footer { border-top: 0; text-align: center; }
+.pwa #detail { padding-top: env(safe-area-inset-top); }
+.pwa #dbody { padding-bottom: calc(78px + env(safe-area-inset-bottom)); }
+.pwa #mapzoom .mzscroll { padding-top: calc(60px + env(safe-area-inset-top)); }
+#pwatip { position: fixed; left: 12px; right: 12px; bottom: calc(70px + env(safe-area-inset-bottom)); z-index: 99;
+  background: #222632; color: #fff; border: 1px solid #343a48; border-radius: 12px; padding: 10px 12px;
+  font-size: 13px; line-height: 1.5; white-space: pre-line; box-shadow: 0 8px 28px #0009;
   opacity: 0; transform: translateY(10px); transition: .15s; pointer-events: none; }
 #pwatip.on { opacity: 1; transform: none; }
 """
