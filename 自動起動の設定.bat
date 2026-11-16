@@ -12,7 +12,7 @@ if exist "%LNK%" (
   exit /b
 )
 for /f "delims=" %%P in ('python -c "import sys,os;print(os.path.join(os.path.dirname(sys.executable),'pythonw.exe'))"') do set "PYW=%%P"
-powershell -NoProfile -Command "$s=(New-Object -ComObject WScript.Shell).CreateShortcut($env:LNK); $s.TargetPath=$env:PYW; $s.Arguments='\"%~dp0watcher.pyw\"'; $s.WorkingDirectory='%~dp0'; $s.IconLocation='%~dp0icon.ico'; $s.Save()"
+powershell -NoProfile -Command "$s=(New-Object -ComObject WScript.Shell).CreateShortcut($env:LNK); $s.TargetPath=$env:PYW; $s.Arguments='\"%~dp0watcher.pyw\"'; $s.WorkingDirectory='%~dp0'; $s.IconLocation='%~dp0shuki.ico'; $s.Save()"
 start "" "%PYW%" "%~dp0watcher.pyw"
 echo 自動起動を登録しました。ゲームを起動すると荘園手記が開きます。
 echo （もう一度このファイルを実行すると解除）

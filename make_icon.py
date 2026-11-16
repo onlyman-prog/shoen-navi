@@ -115,6 +115,8 @@ def main():
     sizes = [16, 24, 32, 48, 64, 128, 256]
     imgs = [(small if s <= 32 else big).resize((s, s), Image.LANCZOS) for s in sizes]
     imgs[-1].save(ROOT / "icon.ico", format="ICO", sizes=[(s, s) for s in sizes], append_images=imgs[:-1])
+    # ショートカット用 (Windows のアイコンキャッシュを避けるため別名でも保存)
+    imgs[-1].save(ROOT / "shuki.ico", format="ICO", sizes=[(s, s) for s in sizes], append_images=imgs[:-1])
     big.resize((1024, 1024), Image.LANCZOS).save(ROOT / "web" / "icon-1024.png")
     # iPhone/Android 用: 角丸なし (OS が自分で角を丸める)
     draw(False, full=True).resize((1024, 1024), Image.LANCZOS).convert("RGB").save(ROOT / "web" / "icon-full.png")
