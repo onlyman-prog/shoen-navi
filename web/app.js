@@ -25,6 +25,7 @@ async function loadData() {
   if (D) for (const c of Object.values(D.chars)) if (c.gameImg) { c.webImg = c.img; c.img = c.gameImg; }
   render();
   status();
+  hideSplash();
 }
 
 function status(msg) {
@@ -47,6 +48,18 @@ window.onUpdated = async (ok, err) => {
   await loadData();
   if (cur) showDetail(cur, true);
 };
+
+/* 起動アニメーション: 最低 2.1 秒見せてから、データ読込後にフェードアウト (クリックで飛ばせる) */
+const SPLASH_T0 = Date.now();
+function hideSplash(now) {
+  const el = $("#splash");
+  if (!el || el.classList.contains("out")) return;
+  const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const wait = now || reduce ? 0 : Math.max(0, 2100 - (Date.now() - SPLASH_T0));
+  setTimeout(() => { el.classList.add("out"); setTimeout(() => el.remove(), 800); }, wait);
+}
+$("#splash") && $("#splash").addEventListener("click", () => hideSplash(true));
+setTimeout(() => hideSplash(true), 7000); // 読込が遅くても閉じる
 
 let started = false;
 async function init() {
