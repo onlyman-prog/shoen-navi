@@ -455,3 +455,8 @@ main > .grid, main > .maps, main > .place, main > h4 { animation: fadeUp .25s ea
 .pmap[data-layer="gate"] .pg { animation: gpulse 1.4s ease-in-out infinite; }
 @keyframes gpulse { 50% { box-shadow: 0 0 0 1.5px #fff, 0 0 0 7px rgba(255,255,255,.18), 0 0 18px rgba(255,255,255,.5); } }
 .pmap[data-layer="gate"] .pl { opacity: .28; }
+
+/* 最前面ボタン: オンで手前の窓が金色に */
+#pin .front { fill: var(--bg); }
+#pin.on .front { fill: rgba(220,189,124,.28); stroke: var(--gold1); }
+#pin.on svg { filter: drop-shadow(0 0 5px rgba(220,189,124,.5)); }
