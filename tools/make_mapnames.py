@@ -118,7 +118,11 @@ def render(key, m, W=1100):
     im = Image.alpha_composite(im, ov).convert("RGB")
     OUT.mkdir(parents=True, exist_ok=True)
     im.save(OUT / f"{key}.jpg", quality=86)
-    return {"w": W, "h": H, "base": f"mapnames/{key}_base.jpg", "labels": layout, "hatches": hinfo}
+    gates = []
+    for gname, (gx, gy) in m.get("gatePos", {}).items():
+        cx, cy = P(*to_pct(m, gx, gy))
+        gates.append({"name": gname, "x": round(cx / W * 100, 2), "y": round(cy / H * 100, 2)})
+    return {"w": W, "h": H, "base": f"mapnames/{key}_base.jpg", "labels": layout, "hatches": hinfo, "gates": gates}
 
 
 if __name__ == "__main__":

@@ -165,10 +165,62 @@ let placeLayer = "all"; // all | hatch | base | gate
 function mapOverlay(g, cls = "") {
   const L = g.layout;
   if (!L) return `<img class="pimg" src="${esc(g.img)}" data-zoom="${esc(g.img)}" alt="">`;
-  const lab = L.labels.map((l) => `<span class="pl${l.basement ? " is-base" : ""}${l.gate ? " is-gate" : ""}" data-area="${esc(l.name)}" style="left:${l.x}%;top:${l.y}%">${furi(l.name)}${
-    l.basement ? '<i class="tb">地下室</i>' : ""}${l.gate ? `<i class="tg">${esc(l.gate.replace("ゲート", ""))}</i>` : ""}</span>`).join("");
+  const lab = L.labels.map((l) => `<span class="pl${l.basement ? " is-base" : ""}${l.gate ? " is-gate" : ""}" data-area="${esc(l.name)}" data-x="${l.x}" data-y="${l.y}" style="left:${l.x}%;top:${l.y}%">${furi(l.name)}${
+    l.basement ? '<i class="tb">地下室</i>' : ""}</span>`).join("");
+  const gate = (L.gates || []).map((q) => `<span class="pg${q.name === "正門" ? " main" : ""}" data-x="${q.x}" data-y="${q.y}" style="left:${q.x}%;top:${q.y}%" title="${esc(q.name + "ゲート")}"><svg viewBox="0 0 24 24"><path d="M5 20V9a7 7 0 0 1 14 0v11M5 20h14M12 4v16"/></svg>${esc(q.name)}</span>`).join("");
   const hat = L.hatches.map((h, i) => `<b class="ph" data-hi="${i}" style="left:${h.x}%;top:${h.y}%" title="${esc("ハッチ → チャットで「" + h.area + "」" + (h.nick ? "\n通称: " + h.nick : ""))}"></b>`).join("");
-  return `<div class="pmap ${cls}" data-layer="${placeLayer}" style="aspect-ratio:${L.w}/${L.h}"><img src="${esc(L.base)}" alt="" loading="lazy">${lab}${hat}</div>`;
+  return `<div class="pmap ${cls}" data-layer="${placeLayer}" style="aspect-ratio:${L.w}/${L.h}"><img src="${esc(L.base)}" alt="" loading="lazy">${lab}${gate}${hat}</div>`;
+}
+// 実際の表示サイズを測って、地名ラベル同士・ハッチマークと重ならないように配置し直す
+function declutter(map) {
+  const W = map.clientWidth, H = map.clientHeight;
+  if (!W || !H) return;
+  const labs = [...map.querySelectorAll(".pl")];
+  const hats = [...map.querySelectorAll(".ph")].map((h) => {
+    const r = h.offsetWidth / 2 + 3;
+    return { x: (parseFloat(h.style.left) / 100) * W, y: (parseFloat(h.style.top) / 100) * H, r };
+  });
+  const gates = [...map.querySelectorAll(".pg")].map((el) => {
+    const w = el.offsetWidth, h = el.offsetHeight;
+    const x = Math.min(W - w / 2 - 2, Math.max(w / 2 + 2, (+el.dataset.x / 100) * W));
+    const y = Math.min(H - h / 2 - 2, Math.max(h / 2 + 2, (+el.dataset.y / 100) * H));
+    el.style.left = (x / W) * 100 + "%"; el.style.top = (y / H) * 100 + "%";
+    return { x, y, r: Math.max(w, h) / 2 + 3 };
+  });
+  hats.push(...gates);
+  const B = labs.map((el) => ({ el, x: (+el.dataset.x / 100) * W, y: (+el.dataset.y / 100) * H, w: el.offsetWidth + 4, h: el.offsetHeight + 4 }));
+  const ox = B.map((b) => b.x), oy = B.map((b) => b.y);
+  for (let it = 0; it < 80; it++) {
+    let moved = false;
+    for (let i = 0; i < B.length; i++) {
+      const a = B[i];
+      for (let j = i + 1; j < B.length; j++) {
+        const b = B[j];
+        const dx = (a.w + b.w) / 2 - Math.abs(a.x - b.x), dy = (a.h + b.h) / 2 - Math.abs(a.y - b.y);
+        if (dx <= 0 || dy <= 0) continue;
+        moved = true;
+        if (dy < dx * 1.4) { const s = (a.y <= b.y ? -1 : 1) * (dy / 2 + .5); a.y += s; b.y -= s; }
+        else { const s = (a.x <= b.x ? -1 : 1) * (dx / 2 + .5); a.x += s; b.x -= s; }
+      }
+      for (const h of hats) {  // ハッチマークは動かさず、ラベル側を逃がす
+        const dx = a.w / 2 + h.r - Math.abs(a.x - h.x), dy = a.h / 2 + h.r - Math.abs(a.y - h.y);
+        if (dx <= 0 || dy <= 0) continue;
+        moved = true;
+        if (dy < dx) a.y += (a.y <= h.y ? -1 : 1) * (dy + .5); else a.x += (a.x <= h.x ? -1 : 1) * (dx + .5);
+      }
+      // 元の位置に少し引き戻す (遠くへ飛ばない) + 地図の内側に収める
+      a.x += (ox[i] - a.x) * 0.02; a.y += (oy[i] - a.y) * 0.02;
+      a.x = Math.min(W - a.w / 2, Math.max(a.w / 2, a.x));
+      a.y = Math.min(H - a.h / 2, Math.max(a.h / 2, a.y));
+    }
+    if (!moved) break;
+  }
+  for (const b of B) { b.el.style.left = (b.x / W) * 100 + "%"; b.el.style.top = (b.y / H) * 100 + "%"; }
+}
+const mapRO = "ResizeObserver" in window ? new ResizeObserver((es) => es.forEach((e) => declutter(e.target))) : null;
+function watchMaps(root = document) {
+  root.querySelectorAll(".pmap").forEach((m) => { if (mapRO) mapRO.observe(m); declutter(m); });
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => root.querySelectorAll(".pmap").forEach(declutter));
 }
 function placeHTML(name, full) {
   const g = MN(name);
@@ -193,6 +245,7 @@ function renderPlaces() {
   $("#list").innerHTML = `<div class="mapsel">${names.map((n) => `<button class="${n === placeMap ? "on" : ""}" data-pm="${esc(n)}">${esc(n)}</button>`).join("")}</div>
     ${placeHTML(placeMap)}
     <p class="none">地名はゲーム内チャットの「エリア」タブで選べる公式名です。出典: ${esc(D.mapNames.source || "")}</p>`;
+  watchMaps($("#list"));
 }
 // ハッチ/地下室のハイライト
 function placeFocus(root, sel) {
@@ -206,6 +259,7 @@ function openMapZoom(name) {
   if (!g) return;
   $("#mapzoom .mzscroll").innerHTML = mapOverlay(g, "big");
   $("#mapzoom").hidden = false;
+  watchMaps($("#mapzoom"));
 }
 function renderMaps() {
   $("#list").innerHTML = `<div class="maps">${mapList().map(mapHTML).join("")}</div>`;
@@ -737,6 +791,7 @@ function showDetail(key, replace) {
       <div class="sec"><div class="lbl">ハンター目線 おすすめ</div>${mapRows(m.h, "h")}</div>
       <p class="none">ホバー(スマホは長押し)で理由と出典。上ほど多くの情報源で一致。「大会」=2026年の中国大会(IVL)でよく使われたキャラ。</p>
       ${D.mapSources && D.mapSources.note ? `<p class="none">※ ${esc(D.mapSources.note)}</p>` : ""}`;
+    watchMaps(body);
     return;
   }
 

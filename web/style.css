@@ -444,3 +444,14 @@ h4.grp.t-S { --tc: #ff8f84; } h4.grp.t-A { --tc: #f6b46d; } h4.grp.t-B { --tc: #
 main > .grid, main > .maps, main > .place, main > h4 { animation: fadeUp .25s ease both; }
 @keyframes fadeUp { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
 @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+
+/* ゲートのマーク */
+.pg { position: absolute; transform: translate(-50%, -50%); display: inline-flex; align-items: center; gap: .25em; z-index: 2;
+  font: 700 max(9px, 2.2cqw)/1 var(--serif); letter-spacing: .06em; color: #fff; white-space: nowrap;
+  padding: .3em .55em .3em .4em; border-radius: 999px; background: #3f6fd0; box-shadow: 0 0 0 1.5px rgba(255,255,255,.85), 0 3px 10px rgba(0,0,0,.5); }
+.pg.main { background: #b8862f; }
+.pg svg { width: 1.15em; height: 1.15em; stroke-width: 2.2; }
+.pmap[data-layer="hatch"] .pg, .pmap[data-layer="base"] .pg { opacity: .3; }
+.pmap[data-layer="gate"] .pg { animation: gpulse 1.4s ease-in-out infinite; }
+@keyframes gpulse { 50% { box-shadow: 0 0 0 1.5px #fff, 0 0 0 7px rgba(255,255,255,.18), 0 0 18px rgba(255,255,255,.5); } }
+.pmap[data-layer="gate"] .pl { opacity: .28; }
