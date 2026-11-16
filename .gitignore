@@ -1,0 +1,13 @@
+# 個人データ・ローカル専用
+data/captures/
+data/icons/
+data/records.json
+data/settings.json
+data/cache.json
+data/*.tmp
+data/wikicache/
+data/mapsrc/
+site/
+__pycache__/
+*.lnk
+*.bak

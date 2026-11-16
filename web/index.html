@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>荘園ナビ</title>
+<link rel="icon" href="icon.png">
+<link rel="stylesheet" href="style.css?v=20261116">
+</head>
+<body>
+<header>
+  <nav id="tabs">
+    <button data-tab="s" class="on">サバ</button>
+    <button data-tab="h">ハンター</button>
+    <button data-tab="m">マップ</button>
+    <button data-tab="pl">地名</button>
+    <button data-tab="ban">BAN予測</button>
+  </nav>
+  <div class="tools">
+    <button id="pin" title="最前面に固定">📌</button>
+    <button id="reload" title="最新情報を取得">⟳</button>
+  </div>
+  <div id="bar"><i></i></div>
+</header>
+
+<div id="filters">
+  <input id="q" type="search" placeholder="検索" autocomplete="off">
+  <div id="tiers"></div>
+</div>
+
+<main id="list"></main>
+
+<section id="detail" hidden>
+  <div class="dhead">
+    <button id="back" title="戻る (Esc)">‹</button>
+    <div id="dtitle"></div>
+  </div>
+  <div id="dbody"></div>
+</section>
+
+<div id="zoom" hidden><img alt=""></div>
+
+<section id="calib-view" hidden>
+  <div class="dhead">
+    <button id="calclose" title="閉じる (Esc)">‹</button>
+    <div class="nm">読み取り設定</div>
+  </div>
+  <div class="calbody">
+    <p class="none">通常は設定不要です（ランク戦の試合前画面の文字を自動で読みます）。うまく読めない場合だけ、BANカードの位置を手動で囲んでください。ゲーム画面は大きめ（横1280以上）が確実です。</p>
+    <ol class="steps">
+      <li>下の自動スクショからBAN画面を選ぶ（または今の画面を「撮影」）</li>
+      <li>BANされたキャラを1枠ずつドラッグで囲む</li>
+      <li>「テスト」で確認 →「保存」</li>
+    </ol>
+    <div class="lbl">最近の自動スクショ <button id="shotsreload" class="mini">更新</button></div>
+    <div id="shots" class="shots"></div>
+    <div class="calbtns">
+      <button id="calshot">📷 撮影</button>
+      <button id="calundo">1つ戻す</button>
+      <button id="caltest">テスト</button>
+      <button id="calsave" class="pri">保存</button>
+    </div>
+    <canvas id="calcv"></canvas>
+    <pre id="calmsg"></pre>
+    <label class="opt"><input type="checkbox" id="gameicons"> ゲーム内のキャラ画像を使う（キャラ選択画面から自動で収集・<span id="iconstat">-</span>）</label>
+    <label class="opt"><input type="checkbox" id="autoshot"> ゲーム中、画面が切り替わったら自動スクショ</label>
+    <label class="opt"><input type="checkbox" id="autoread"> ゲーム中は自動で読み取る（F8で手動読取）</label>
+    <p class="none">使うほど賢くなります：記録するたびに、その時の画面の見た目を学習します。撮影画像は data/captures に保存されます。</p>
+  </div>
+</section>
+
+<div id="toast" hidden></div>
+
+<footer id="status"></footer>
+
+<script src="app.js?v=20261116"></script>
+</body>
+</html>

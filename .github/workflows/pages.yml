@@ -1,0 +1,42 @@
+name: update-and-deploy
+# 毎朝6時(日本時間)に攻略データを取り直して、iPhone版(GitHub Pages)を更新する
+on:
+  schedule:
+    - cron: "0 21 * * *"
+  workflow_dispatch:
+  push:
+    branches: [main]
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+concurrency:
+  group: pages
+  cancel-in-progress: false
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install pillow
+      - name: 前回データを取得 (NEW表示・取得失敗時の予備)
+        run: curl -sfL "https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/data.json" -o data/cache.json || true
+      - name: 最新データを取得
+        run: python scraper.py || echo "scrape failed, using previous data"
+      - run: python tools/build_pwa.py
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
