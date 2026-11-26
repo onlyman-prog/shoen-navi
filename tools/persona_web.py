@@ -109,6 +109,7 @@ def read(im, _lo=None):
     hsv = cv2.cvtColor(im, cv2.COLOR_BGR2HSV)
     out = []
     p1 = {}  # 低解像度: 最大3のマスが「1」らしい度合い
+    guess = []  # 数字が読めず 3 と仮置きしたマス
     thr = 50.0
     if lowres:  # 画像ごとに「明るいラベル」と「暗いラベル」を2つに分ける閾値を決める
         cs = []
@@ -162,24 +163,38 @@ def read(im, _lo=None):
             if lit and MAXV[i] == 3:
                 p1[i] = float(cnt[1])
             out.append((i, a, MAXV[i], lit)); continue
-        elif len(comps) >= 3:
+        elif len(comps) >= 3 or (len(comps) == 2 and comps[0][0] + comps[0][2] / 2 < c.shape[1] * 0.45):
+            # 線が縦に重なると「/」が消えて2つになるので、左側の塊が最初の数字なら読む
             a = _digit(_glyph(m, comps[0]))
         else:
             # 低解像度だと「3/3」がつながる: 文字列全体の左 1/3 を最初の数字とみなす
             ys, xs = np.where(m > 0)
             ok = [j for j in range(1, n) if st[j][3] >= hs * 0.55 and st[j][4] >= 6]
             if not ok:
-                out.append((i, (0 if not active else 1 if MAXV[i] == 1 else None), MAXV[i], active)); continue
+                out.append((i, (0 if not active else 1 if MAXV[i] == 1 else _guess(guess, i)), MAXV[i], active)); continue
             x0 = min(st[j][0] for j in ok); x1 = max(st[j][0] + st[j][2] for j in ok)
             y0 = min(st[j][1] for j in ok); y1 = max(st[j][1] + st[j][3] for j in ok)
             w = x1 - x0
             if w < hs * 1.2:
-                out.append((i, (0 if not active else 1 if MAXV[i] == 1 else None), MAXV[i], active)); continue
+                out.append((i, (0 if not active else 1 if MAXV[i] == 1 else _guess(guess, i)), MAXV[i], active)); continue
             a = _digit(_glyph(m, (x0, y0, max(3, int(w * 0.30)), y1 - y0)))
         out.append((i, min(a, MAXV[i]), MAXV[i], active))
     if lowres and p1:
         out = _fit_total(out, p1)
+    if guess:  # 仮置きしたマスは合計が BUDGET になるように決める (1〜3)
+        tot = sum(a or 0 for _, a, _, _ in out)
+        need = BUDGET - (tot - 3 * len(guess))
+        if len(guess) <= need <= 3 * len(guess):
+            vals = [need // len(guess)] * len(guess)
+            for k in range(need % len(guess)):
+                vals[k] += 1
+            out = [(n, vals[guess.index(n)] if n in guess else a, b, act) for n, a, b, act in out]
     return out
+
+
+def _guess(guess, i):
+    guess.append(i)
+    return 3
 
 
 BUDGET = 26  # 高解像度画像の約7割がこの合計 (全部振り切った状態)
