@@ -13,5 +13,7 @@ d["mapNames"] = {"source": mn_def.get("_source", ""), "maps": {
     v["name"]: {"key": k, "img": f"mapnames/{k}.jpg", "hatches": mn_info[k]["hatches"], "layout": mn_info[k], "tips": v.get("tips", []),
                 "basement": v.get("basement", []), "areas": [l[0] for l in v["labels"]]}
     for k, v in mn_def.items() if not k.startswith("_") and k in mn_info}}
+import scraper
+scraper.attach_persona_reads(d["chars"], json.loads((ROOT / "data" / "persona_reads.json").read_text(encoding="utf-8")))
 p.write_text(json.dumps(d, ensure_ascii=False), encoding="utf-8")
 print("ok", len(d["matchups"]["chars"]), list(d["mapNames"]["maps"]))

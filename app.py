@@ -89,6 +89,7 @@ class Api:
             if data:
                 data["beginner"] = json.loads((ROOT / "data" / "beginner.json").read_text(encoding="utf-8"))
                 data["tiersExtra"] = json.loads((ROOT / "data" / "tiers_extra.json").read_text(encoding="utf-8"))
+                data["personaLayout"] = json.loads((ROOT / "data" / "persona_layout.json").read_text(encoding="utf-8"))
         except Exception:
             pass
         # ゲーム画面から集めたキャラ画像があれば使う

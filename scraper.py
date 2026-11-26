@@ -4,6 +4,7 @@
 """
 import html
 import json
+import sys
 import re
 import time
 import urllib.parse
@@ -177,6 +178,14 @@ def parse_char(page):
     return d
 
 
+def attach_persona_reads(chars, cache):
+    for c in chars.values():
+        for b in c.get("builds", []):
+            r = cache.get(b.get("tree") or "")
+            if r and r.get("ok"):
+                b["web"] = {"pts": r["pts"], "low": r.get("low", False)}
+
+
 def norm(name):
     return re.sub(r"[「」『』\s]", "", name)
 
@@ -329,6 +338,16 @@ def build(progress=None, workers=4):
         mu = matchups.build(result, map_info)
     except Exception as e:
         mu = {"error": str(e)}
+    # 人格の網の画像から「どのマスに何ポイント」を読み取る (読み取り済みの画像はキャッシュを使う)
+    try:
+        sys.path.insert(0, str(Path(__file__).resolve().parent / "tools"))
+        import persona_web
+        attach_persona_reads(result, persona_web.update_cache(result))
+    except Exception:  # opencv が無い環境では保存済みの読み取り結果だけ使う
+        try:
+            attach_persona_reads(result, json.loads((Path(__file__).resolve().parent / "data" / "persona_reads.json").read_text(encoding="utf-8")))
+        except Exception:
+            pass
 
     # マップ地名ガイド (画像は tools/make_mapnames.py で生成済み)
     try:
@@ -383,7 +402,6 @@ def save_cache(data):
 
 
 if __name__ == "__main__":
-    import sys
     sys.stdout.reconfigure(encoding="utf-8")
     d = build(lambda a, b, m: print(f"\r{a}/{b} {m}      ", end="", flush=True))
     save_cache(d)

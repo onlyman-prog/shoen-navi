@@ -958,6 +958,37 @@ function tplOf(side, b) {
   if (u.has("引き留める") || u.has("裏向きカード") || nm.includes("右下")) return "rb";
   return "chase";
 }
+/* 人格の網: 画像から読み取った「どのマスに何ポイント」を図にする */
+const DIRS = [["上", 0, -1], ["右", 1, 0], ["下", 0, 1], ["左", -1, 0]];
+function webHTML(b, side) {
+  const L = D.personaLayout, w = b.web;
+  if (!L || !w || !w.pts) return "";
+  const names = L.names[side] || {}, icons = L.icons[side] || {}, pts = w.pts;
+  const P = L.nodes.map(([x, y]) => [x * 100, y * 100]); // 小さい単位だと文字の設定が効きすぎるので 100 倍
+  const R = (i) => (L.max[i] === 0 ? 7.5 : [0, 1, 2, 3].includes(i) ? 6.8 : 5.2);
+  const on = (i) => (pts[i] || 0) > 0;
+  const lines = L.edges.map(([i, j]) => `<line x1="${P[i][0]}" y1="${P[i][1]}" x2="${P[j][0]}" y2="${P[j][1]}" class="${on(i) && (on(j) || j === L.center) ? "on" : ""}"/>`).join("");
+  const nodes = P.map(([x, y], i) => {
+    const r = R(i), n = names[i] || "", p = pts[i] || 0, mx = L.max[i];
+    if (i === L.center) return `<circle cx="${x}" cy="${y}" r="${r}" class="core"/>`;
+    if (!p) return `<circle cx="${x}" cy="${y}" r="${r * 0.62}" class="off"><title>${esc(n)} 0/${mx}</title></circle>`;
+    const ic = icons[n];
+    return `<g class="nd"><title>${esc(n)} ${p}/${mx}</title><circle cx="${x}" cy="${y}" r="${r}" class="lit"/>
+      ${ic ? `<image href="${esc(sz(ic, 64))}" x="${x - r}" y="${y - r}" width="${2 * r}" height="${2 * r}" clip-path="circle(50%)"/>` : ""}
+      <text x="${x}" y="${y + r + 5.6}" class="pt${p < mx ? " part" : ""}">${p}/${mx}</text></g>`;
+  }).join("");
+  // 方向ごとの一覧 (中心からの向きで上下左右に分ける)
+  const groups = DIRS.map(([lab, dx, dy]) => {
+    const items = Object.keys(pts).map(Number).filter((i) => {
+      const [x, y] = P[i]; return Math.abs(x) + Math.abs(y) > 1 && (dx ? Math.sign(x) === dx && Math.abs(x) >= Math.abs(y) : Math.sign(y) === dy && Math.abs(y) > Math.abs(x));
+    }).sort((a, b) => Math.hypot(...P[a]) - Math.hypot(...P[b]));
+    return items.length ? `<div class="wdir"><b>${lab}</b>${items.map((i) => `<span class="${pts[i] < L.max[i] ? "part" : ""}">${esc(names[i] || "?")}<i>${pts[i]}/${L.max[i]}</i></span>`).join("")}</div>` : "";
+  }).join("");
+  const total = Object.values(pts).reduce((a, v) => a + v, 0);
+  return `<div class="webwrap ${side}"><svg class="web" viewBox="-112 -112 224 224" role="img" aria-label="人格の網">${lines}${nodes}</svg></div>
+    <div class="wlist">${groups}</div>
+    <p class="none wnote">合計 ${total}ポイント・ゲーム画面の画像から自動で読み取り${w.low ? "（画像が小さいため推定。1/3 と 3/3 を取り違えることがあります）" : ""}。マスを長押し/ホバーで名前。</p>`;
+}
 function buildHTML(b, side, personas) {
   const P = Object.fromEntries((personas || []).map((p) => [p.name, p]));
   const tpl = TPL[side].find((x) => x.k === tplOf(side, b));
@@ -971,14 +1002,15 @@ function buildHTML(b, side, personas) {
   const used = b.use || (b.perks || []).map((p) => p.name);
   const icons = used.map((n) => { const p = P[n] || (b.perks || []).find((x) => x.name === n) || {};
     return `<div class="ch" title="${esc(n + (p.effects ? "\n・" + p.effects.join("\n・") : ""))}"><img src="${esc(sz(p.img || "", 84))}" alt=""><span>${esc(n)}${pts[n] ? `<i class="ppt">${pts[n]}</i>` : ""}</span></div>`; }).join("");
-  return `${b.tree ? `<img class="tree" src="${esc(b.tree)}" data-zoom="${esc(b.tree)}" alt="人格ツリー">` : ""}
+  const web = webHTML(b, side);
+  return `${web || (b.tree ? `<img class="tree" src="${esc(b.tree)}" data-zoom="${esc(b.tree)}" alt="人格ツリー">` : "")}
     ${icons ? `<div class="row perk">${icons}</div>` : ""}
     ${tpl ? `<div class="btpl">テンプレ：<b>${esc(tpl.name)}</b></div>` : ""}
     ${b.desc || rows ? `<details class="more"><summary>この構成の説明と人格の効果</summary>
       ${b.desc ? `<p class="bdesc">${esc(b.desc).replace(/「(.+?)」/g, "<b>「$1」</b>")}</p>` : ""}
       ${extra ? `<div class="pextra">${extra}</div>` : ""}
       ${rows ? `<div class="prows">${rows}</div>` : ""}
-      ${b.tree ? '<p class="none">画像はタップで拡大。色の付いた線が振った場所、数字は 振った数/最大。</p>' : ""}</details>` : ""}`;
+      ${b.tree ? `<div class="lbl2">元の画像（ゲーム画面）<small>タップで拡大</small></div><img class="tree raw" src="${esc(b.tree)}" data-zoom="${esc(b.tree)}" alt="人格ツリー" loading="lazy">` : ""}</details>` : ""}`;
 }
 function goBack() {
   history.pop();

@@ -612,3 +612,26 @@ details.more[open] { padding-bottom: 8px; }
 #build .row.perk .ppt { margin-left: 3px; padding: 1px 4px; font-size: 9px; }
 /* 人格の網: 余白を切って中央を大きく見せる (タップで全体を拡大) */
 #build .tree { aspect-ratio: 1.15 / 1; object-fit: cover; object-position: 50% 50%; max-width: 520px; }
+/* 人格の網 (読み取り結果を図に) */
+.webwrap { max-width: 440px; margin: 4px auto 6px; border-radius: 14px; background: radial-gradient(circle at 50% 50%, #1b2533, #0d1118 75%); border: 1px solid var(--line); }
+.web { display: block; width: 100%; height: auto; aspect-ratio: 1; }
+.web line { stroke: rgba(255,255,255,.12); stroke-width: .8; }
+.web .off { fill: rgba(255,255,255,.06); stroke: rgba(255,255,255,.14); stroke-width: .6; }
+.web .core { fill: #7fb3d5; opacity: .8; }
+.webwrap.s line.on { stroke: #5fd3ff; stroke-width: 1.6; }
+.webwrap.h line.on { stroke: #f0a05a; stroke-width: 1.6; }
+.webwrap.h .core { fill: #e59a6a; }
+.web .lit { stroke-width: 1; }
+.webwrap.s .lit { fill: #3f86a6; stroke: #9be3ff; }
+.webwrap.h .lit { fill: #9b5636; stroke: #ffc08a; }
+.web text { letter-spacing: 0; }
+.web .pt { font: 700 6.2px sans-serif; fill: #fff; text-anchor: middle; paint-order: stroke; stroke: #0d1118; stroke-width: 1.8; }
+.web .pt.part { fill: #ffd36b; }
+.wlist { display: grid; gap: 4px; margin: 4px 0; }
+.wdir { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; font-size: 11.5px; }
+.wdir > b { width: 20px; color: var(--gold2); font: 700 12px/1 var(--serif); }
+.wdir span { padding: 2px 7px; border-radius: 999px; border: 1px solid var(--line); background: rgba(255,255,255,.03); }
+.wdir span i { font-style: normal; font-weight: 700; margin-left: 4px; color: var(--gold1); font-size: 10.5px; }
+.wdir span.part i { color: #ffd36b; }
+.wnote { margin-top: 2px; }
+#build .tree.raw { aspect-ratio: auto; object-fit: contain; }
