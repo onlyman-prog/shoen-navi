@@ -154,6 +154,15 @@ function tierBox(c) {
     <div class="tvotes">${vs.map((x) => `<span class="tv" ${x.url ? `data-url="${esc(x.url)}"` : ""} title="${esc(x.label)} ${esc(x.date)}${x.note ? "（" + esc(x.note) + "）" : ""}"><b class="tier ${x.tier[0]}">${esc(x.tier)}</b><small>${esc(x.label)}</small></span>`).join("")}</div></div>`;
 }
 
+function tplExamples(side, k) {
+  const V = D.personaVideos;
+  if (!V) return "";
+  const ex = (V[side] || []).filter((v) => v.tpl === k && !(v.chars || []).length);
+  if (!ex.length) return "";
+  return `<div class="tex">${ex.map((v) => `<div class="texi">${webHTML(v, side, true)}<small>${esc(v.name)}</small></div>`).join("")}</div>
+    <p class="none">例: ${esc(V.sources[ex[0].src].label)}（${esc(V.sources[ex[0].src].date)}）の動画の画面を読み取ったもの</p>`;
+}
+
 /* 人格テンプレのまとめ (全キャラのおすすめ構成から集計) */
 function tplSummary(side) {
   const cs = chars(side), by = {};
@@ -163,6 +172,7 @@ function tplSummary(side) {
   return `<h4 class="grp"><span class="tn">人格テンプレ</span><small>${core.length}パターン用意すれば${side === "s" ? "ほぼ全サバイバー" : "全ハンター"}に対応</small></h4>
     <div class="tpls">${list.map((x) => `<div class="tpl"><div class="th"><b>${esc(x.name)}</b><small>${by[x.k].length}キャラ</small></div>
       ${x.key.length ? `<div class="tk">${x.key.map((k) => `<i>${esc(k)}</i>`).join("")}</div>` : ""}<p>${esc(x.note)}</p>
+      ${tplExamples(side, x.k)}
       <div class="tc">${by[x.k].map((c) => `<button data-ch="${esc(c.name)}" title="${esc(c.name)}"><img src="${esc(sz(c.img, 48))}" alt="" loading="lazy"></button>`).join("")}</div></div>`).join("")}</div>
     ${side === "s" ? '<p class="none">2026年7月の新人格: 「愛着効果」（味方の治療が速くなり約8割で手を離しても完了）は全サバイバーにおすすめ、アイテム消費型は「使い切った後の箱開け高速化」も強い（唯のん 2026/7）。</p>' : ""}
     <p class="none">各キャラのおすすめ構成（${esc(D.source.name)}）を自動で分類した結果。キャラ詳細の「人格」にもテンプレ名を表示しています。</p>`;
@@ -895,7 +905,7 @@ function showDetail(key, replace) {
     <div class="nm">${esc(c.name)} <b class="tier ${c.tier}">${c.tier}</b></div>
     <span class="src" data-url="${esc(c.url)}">神ゲー攻略</span> <span class="src" data-url="${esc(c.wiki || "")}">5chWiki</span></div>`;
 
-  const builds = c.builds || [];
+  const builds = [...(c.builds || []), ...extraBuilds(c)];
   const b = builds[0];
   const cs = cnChar(c.name);
   const mu = MU(c.name);
@@ -910,8 +920,8 @@ function showDetail(key, replace) {
     <div class="sec"><div class="lbl"><span><span class="bad">苦手</span>${isS ? "なハンター" : "なサバイバー"}</span></div>${row(isS ? c.badH : c.badS)}</div>`;
   body.innerHTML = `
     ${muSec}
-    <div class="sec"><div class="lbl">人格</div>
-      ${builds.length > 1 ? `<div class="chips">${builds.map((x, i) => `<button class="chip ${i ? "" : "on"}" data-b="${i}">${esc(x.name)}</button>`).join("")}</div>` : ""}
+    <div class="sec"><div class="lbl">人格${api() && api().capture_persona ? '<button class="mini capp" data-capp title="ゲームで人格の網の画面を開いてから押すと、その画面を読み取ってこのキャラの構成として保存します">ゲーム画面から記録</button>' : ""}</div>
+      ${builds.length > 1 ? `<div class="chips">${builds.map((x, i) => `<button class="chip ${i ? "" : "on"}${x.mine ? " mine" : x.srcUrl ? " vid" : ""}" data-b="${i}" title="${esc(x.title || x.name)}">${esc(x.name)}</button>`).join("")}</div>` : ""}
       <div id="build">${b ? buildHTML(b, c.side, c.personas) : '<p class="none">情報なし</p>'}</div>
     </div>
     ${mu ? `<div class="sec"><div class="lbl">マップ相性</div>
@@ -960,7 +970,7 @@ function tplOf(side, b) {
 }
 /* 人格の網: 画像から読み取った「どのマスに何ポイント」を図にする */
 const DIRS = [["上", 0, -1], ["右", 1, 0], ["下", 0, 1], ["左", -1, 0]];
-function webHTML(b, side) {
+function webHTML(b, side, compact) {
   const L = D.personaLayout, w = b.web;
   if (!L || !w || !w.pts) return "";
   const names = L.names[side] || {}, icons = L.icons[side] || {}, pts = w.pts;
@@ -985,9 +995,22 @@ function webHTML(b, side) {
     return items.length ? `<div class="wdir"><b>${lab}</b>${items.map((i) => `<span class="${pts[i] < L.max[i] ? "part" : ""}">${esc(names[i] || "?")}<i>${pts[i]}/${L.max[i]}</i></span>`).join("")}</div>` : "";
   }).join("");
   const total = Object.values(pts).reduce((a, v) => a + v, 0);
+  if (compact) return `<div class="webwrap ${side} mini"><svg class="web" viewBox="-112 -112 224 224" role="img" aria-label="人格の網">${lines}${nodes}</svg></div>`;
   return `<div class="webwrap ${side}"><svg class="web" viewBox="-112 -112 224 224" role="img" aria-label="人格の網">${lines}${nodes}</svg></div>
     <div class="wlist">${groups}</div>
     <p class="none wnote">合計 ${total}ポイント・ゲーム画面の画像から自動で読み取り${w.low ? "（画像が小さいため推定。1/3 と 3/3 を取り違えることがあります）" : ""}。マスを長押し/ホバーで名前。</p>`;
+}
+/* 神ゲー以外の構成: 動画から読み取ったもの・自分でゲーム画面から記録したもの */
+function extraBuilds(c) {
+  const L = D.personaLayout, out = [];
+  const ends = (w) => Object.keys(w.pts).filter((i) => [0, 1, 2, 3].includes(+i)).map((i) => L && L.names[c.side][i]).filter(Boolean);
+  const V = D.personaVideos;
+  if (V) for (const v of V[c.side] || []) if ((v.chars || []).includes(c.name)) {
+    const s = V.sources[v.src] || {};
+    out.push({ name: `${s.label || "動画"}`, title: v.name, web: v.web, use: ends(v.web), desc: `${v.name}（${s.label || ""} ${s.date || ""} の動画の画面から読み取り）`, srcUrl: s.url });
+  }
+  for (const r of D.myPersonas || []) if (r.char === c.name) out.push({ name: r.name, web: r.web, use: ends(r.web), desc: `ゲーム画面から記録（${r.date}）`, mine: r.id });
+  return out;
 }
 function buildHTML(b, side, personas) {
   const P = Object.fromEntries((personas || []).map((p) => [p.name, p]));
@@ -1001,9 +1024,11 @@ function buildHTML(b, side, personas) {
   const extra = Object.entries(pts).filter(([n]) => !(b.use || []).includes(n)).map(([n, v]) => `<i class="ppt">${esc(n)} ${v}ポイント</i>`).join("");
   const used = b.use || (b.perks || []).map((p) => p.name);
   const icons = used.map((n) => { const p = P[n] || (b.perks || []).find((x) => x.name === n) || {};
-    return `<div class="ch" title="${esc(n + (p.effects ? "\n・" + p.effects.join("\n・") : ""))}"><img src="${esc(sz(p.img || "", 84))}" alt=""><span>${esc(n)}${pts[n] ? `<i class="ppt">${pts[n]}</i>` : ""}</span></div>`; }).join("");
+    const img = p.img || (D.personaLayout && D.personaLayout.icons[side] && D.personaLayout.icons[side][n]) || "";
+    return `<div class="ch" title="${esc(n + (p.effects ? "\n・" + p.effects.join("\n・") : ""))}"><img src="${esc(sz(img, 84))}" alt=""><span>${esc(n)}${pts[n] ? `<i class="ppt">${pts[n]}</i>` : ""}</span></div>`; }).join("");
   const web = webHTML(b, side);
-  return `${web || (b.tree ? `<img class="tree" src="${esc(b.tree)}" data-zoom="${esc(b.tree)}" alt="人格ツリー">` : "")}
+  const extraBtns = (b.srcUrl ? `<span class="src" data-url="${esc(b.srcUrl)}">元の動画</span>` : "") + (b.mine ? `<button class="mini" data-delp="${b.mine}">この記録を削除</button>` : "");
+  return `${extraBtns ? `<div class="bextra">${extraBtns}</div>` : ""}${web || (b.tree ? `<img class="tree" src="${esc(b.tree)}" data-zoom="${esc(b.tree)}" alt="人格ツリー">` : "")}
     ${icons ? `<div class="row perk">${icons}</div>` : ""}
     ${tpl ? `<div class="btpl">テンプレ：<b>${esc(tpl.name)}</b></div>` : ""}
     ${b.desc || rows ? `<details class="more"><summary>この構成の説明と人格の効果</summary>
@@ -1060,6 +1085,25 @@ document.addEventListener("click", (e) => {
   if (rh) return addRecord(rh.dataset.rh);
   const del = e.target.closest("[data-del]");
   if (del) return api().delete_record(+del.dataset.del).then((r) => { records = r; render(); });
+  if (e.target.closest("[data-capp]")) {
+    const key = history[history.length - 1], c = D.chars[key];
+    if (!c) return;
+    toast("ゲーム画面を読み取り中…", 1500);
+    api().capture_persona(c.name, c.side, "").then((r) => {
+      if (!r || r.error) return toast((r && r.error) || "読み取りに失敗しました", 4000);
+      (D.myPersonas ||= []).push(r.rec);
+      showDetail(key, true);
+      const chips = document.querySelectorAll("#dbody .chip[data-b]");
+      chips.length && chips[chips.length - 1].click();
+      toast(`記録しました（合計 ${r.total}ポイント）`, 2500);
+    });
+    return;
+  }
+  const dp = e.target.closest("[data-delp]");
+  if (dp) {
+    api().delete_persona(+dp.dataset.delp).then((recs) => { D.myPersonas = recs; showDetail(history[history.length - 1], true); toast("削除しました", 1500); });
+    return;
+  }
   const bb = e.target.closest("[data-b]");
   if (bb) {
     document.querySelectorAll("#dbody .chip").forEach((x) => x.classList.toggle("on", x === bb));

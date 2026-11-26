@@ -635,3 +635,13 @@ details.more[open] { padding-bottom: 8px; }
 .wdir span.part i { color: #ffd36b; }
 .wnote { margin-top: 2px; }
 #build .tree.raw { aspect-ratio: auto; object-fit: contain; }
+/* 記録・動画の構成 */
+.lbl .capp { margin-left: auto; font-family: sans-serif; letter-spacing: 0; font-size: 11px; padding: 4px 10px; border-radius: 8px; border: 1px solid rgba(220,189,124,.5); color: var(--gold1); background: rgba(220,189,124,.08); cursor: pointer; }
+#dbody .lbl:has(.capp) { display: flex; align-items: center; }
+.chip.vid::before { content: "▶ "; color: #ff7b7b; }
+.chip.mine::before { content: "● "; color: #7ad38f; }
+.bextra { display: flex; gap: 8px; align-items: center; margin: 4px 0; }
+.tex { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 6px; margin: 6px 0 2px; }
+.texi small { display: block; font-size: 10px; color: var(--sub); line-height: 1.4; margin-top: 2px; }
+.webwrap.mini { margin: 0; border-radius: 10px; }
+.webwrap.mini .pt { display: none; }

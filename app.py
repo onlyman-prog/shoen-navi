@@ -90,6 +90,8 @@ class Api:
                 data["beginner"] = json.loads((ROOT / "data" / "beginner.json").read_text(encoding="utf-8"))
                 data["tiersExtra"] = json.loads((ROOT / "data" / "tiers_extra.json").read_text(encoding="utf-8"))
                 data["personaLayout"] = json.loads((ROOT / "data" / "persona_layout.json").read_text(encoding="utf-8"))
+                data["personaVideos"] = json.loads((ROOT / "data" / "persona_videos.json").read_text(encoding="utf-8"))
+                data["myPersonas"] = read_json(ROOT / "data" / "my_personas.json", [])
         except Exception:
             pass
         # ゲーム画面から集めたキャラ画像があれば使う
@@ -191,6 +193,49 @@ class Api:
         self._last = (time.time(), img)
         h, w = img.shape[:2]
         return {"img": vision.to_data_url(img), "w": w, "h": h}
+
+    def capture_persona(self, char, side, label=""):
+        """ゲームの「人格の網」の画面を撮影し、どのマスに何ポイントかを読み取って保存する。"""
+        if not vision:
+            return {"error": "画像認識ライブラリがありません: " + VISION_ERR}
+        try:
+            sys.path.insert(0, str(ROOT / "tools"))
+            import persona_web
+        except Exception as e:
+            return {"error": f"読み取りの準備に失敗しました: {e}"}
+        me = find_app_window()
+        hide = vision.overlaps(me, [[0, 0, 1, 1]])
+        if hide:
+            ctypes.windll.user32.ShowWindow(me, 0)
+            time.sleep(0.25)
+        try:
+            img = vision.capture()
+        finally:
+            if hide:
+                ctypes.windll.user32.ShowWindow(me, 5)
+        if img is None:
+            return {"error": "ゲーム画面が見つかりません（最小化していると撮れません）"}
+        r = persona_web.read(img)
+        if not r:
+            vision.save_capture(img)
+            return {"error": "人格の網の画面が見つかりませんでした。ゲームで人格の網を開いた状態で押してください"}
+        pts = {str(n): int(a) for n, a, b, act in r if a}
+        if not pts:
+            return {"error": "ポイントを振ったマスが読み取れませんでした"}
+        reg = persona_web.register(img)
+        rec = {"id": int(time.time() * 1000), "char": char, "side": side, "name": label or time.strftime("記録 %m/%d %H:%M"),
+               "date": time.strftime("%Y-%m-%d"), "web": {"pts": pts, "low": bool(reg and reg[2] < 260)}}
+        path = ROOT / "data" / "my_personas.json"
+        recs = read_json(path, [])
+        recs.append(rec)
+        write_json(path, recs)
+        return {"ok": True, "rec": rec, "total": sum(pts.values())}
+
+    def delete_persona(self, rid):
+        path = ROOT / "data" / "my_personas.json"
+        recs = [r for r in read_json(path, []) if r.get("id") != rid]
+        write_json(path, recs)
+        return recs
 
     def save_slots(self, slots):
         self._set("slots", [[float(v) for v in s] for s in slots][:3])
