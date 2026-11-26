@@ -10,10 +10,10 @@ import cv2
 import numpy as np
 
 DATA = Path(__file__).resolve().parent.parent / "data"
-_L = json.load(open(DATA / "persona_layout.json"))
+_L = json.load(open(DATA / "persona_layout.json", encoding="utf-8"))
 LAYOUT = np.array(_L["nodes"], np.float32)
 MAXV = _L["max"]  # マスごとの最大ポイント (1 or 3、中心は0)
-_D = json.load(open(DATA / "persona_digits.json"))
+_D = json.load(open(DATA / "persona_digits.json", encoding="utf-8"))
 DIG = {k: np.array(t, np.float32) for k, t in zip(_D["keys"], _D["templates"])}
 KX, KY = np.array(_D["knnX"], np.float32), np.array(_D["knnY"])
 LX, LY = np.array(_D.get("loX", []), np.float32), np.array(_D.get("loY", []), int)
