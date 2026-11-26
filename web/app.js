@@ -903,28 +903,31 @@ function showDetail(key, replace) {
     <b>勝率 ${v.win}%</b><span>引分 ${v.draw}%</span><span>使用 ${v.use}%</span><span>BAN ${v.ban}%</span></div>` : "";
   const nsrc = mu ? new Set(["good", "bad", "goodMaps", "badMaps"].flatMap((k) => mu[k].flatMap((x) => x.src))).size : 0;
   const srcNames = Object.values((D.matchups && D.matchups.sources) || {}).map((s) => s.label).join("・");
-  body.innerHTML = `
-    ${tierBox(c)}
-    ${mu ? `${nsrc <= 2 ? `<p class="thin">⚠ このキャラは相性情報が少なめです（情報源 ${nsrc}件）</p>` : ""}
-    <div class="sec"><div class="lbl"><span><span class="good">得意</span>${isS ? "なハンター" : "なサバイバー"}</span><small>数字=一致した情報源の数</small></div>${muRow(mu.good)}</div>
-    <div class="sec"><div class="lbl"><span><span class="bad">苦手</span>${isS ? "なハンター" : "なサバイバー"}</span></div>${muRow(mu.bad)}</div>
-    <div class="sec"><div class="lbl">マップ相性</div>
-      <div class="mline"><span class="good">得意</span>${muMaps(mu.goodMaps, "g")}</div>
-      <div class="mline"><span class="bad">苦手</span>${muMaps(mu.badMaps, "b")}</div></div>` : `
+  const muSec = mu ? `
+    <div class="sec"><div class="lbl"><span><span class="good">得意</span>${isS ? "なハンター" : "なサバイバー"}</span></div>${muRow(mu.good)}</div>
+    <div class="sec"><div class="lbl"><span><span class="bad">苦手</span>${isS ? "なハンター" : "なサバイバー"}</span></div>${muRow(mu.bad)}</div>` : `
     <div class="sec"><div class="lbl"><span><span class="good">得意</span>${isS ? "なハンター" : "なサバイバー"}</span></div>${row(isS ? c.goodH : c.goodS)}</div>
-    <div class="sec"><div class="lbl"><span><span class="bad">苦手</span>${isS ? "なハンター" : "なサバイバー"}</span></div>${row(isS ? c.badH : c.badS)}</div>
-    <div class="sec"><div class="lbl">得意マップ</div>
-      ${(() => { const ms = mapList().filter((m) => m[c.side].some((a) => a.name === c.name));
-        return ms.length ? `<div class="mrow">${ms.map(mapHTML).join("")}</div>` : '<p class="none">情報なし</p>'; })()}</div>`}
-    ${isS && c.goodS.length ? `<div class="sec"><div class="lbl">相性◎ 味方</div>${row(c.goodS)}</div>` : ""}
+    <div class="sec"><div class="lbl"><span><span class="bad">苦手</span>${isS ? "なハンター" : "なサバイバー"}</span></div>${row(isS ? c.badH : c.badS)}</div>`;
+  body.innerHTML = `
+    ${muSec}
     <div class="sec"><div class="lbl">人格</div>
       ${builds.length > 1 ? `<div class="chips">${builds.map((x, i) => `<button class="chip ${i ? "" : "on"}" data-b="${i}">${esc(x.name)}</button>`).join("")}</div>` : ""}
       <div id="build">${b ? buildHTML(b, c.side, c.personas) : '<p class="none">情報なし</p>'}</div>
     </div>
+    ${mu ? `<div class="sec"><div class="lbl">マップ相性</div>
+      <div class="mline"><span class="good">得意</span>${muMaps(mu.goodMaps, "g")}</div>
+      <div class="mline"><span class="bad">苦手</span>${muMaps(mu.badMaps, "b")}</div></div>` : `<div class="sec"><div class="lbl">得意マップ</div>
+      ${(() => { const ms = mapList().filter((m) => m[c.side].some((a) => a.name === c.name));
+        return ms.length ? `<div class="mrow">${ms.map(mapHTML).join("")}</div>` : '<p class="none">情報なし</p>'; })()}</div>`}
     ${!isS ? `<div class="sec"><div class="lbl">補助特質</div>${c.traits.length ? iconRow(c.traits) : '<p class="none">情報なし</p>'}</div>` : ""}
-    ${cs ? `<div class="sec cnbox"><div class="lbl">公式ランクデータ（中国版 S${esc(D.cn.char.season)}）<span class="src" data-url="${esc(D.cn.url)}">出典</span></div>
-      ${cnRow(cs.all, "全段位")}${cnRow(cs.top, "最上位")}</div>` : ""}
-    ${mu ? `<p class="none">ホバー(スマホは長押し)で出典と根拠。相性の出典: ${esc(srcNames)}・マップ集計</p>` : ""}`;
+    ${isS && c.goodS.length ? `<div class="sec"><div class="lbl">相性◎ 味方</div>${row(c.goodS)}</div>` : ""}
+    <details class="more"><summary>くわしい情報（ティア評価・公式データ・出典）</summary>
+      ${tierBox(c)}
+      ${mu && nsrc <= 2 ? `<p class="thin">⚠ このキャラは相性情報が少なめです（情報源 ${nsrc}件）</p>` : ""}
+      ${cs ? `<div class="sec cnbox"><div class="lbl">公式ランクデータ（中国版 S${esc(D.cn.char.season)}）<span class="src" data-url="${esc(D.cn.url)}">出典</span></div>
+        ${cnRow(cs.all, "全段位")}${cnRow(cs.top, "最上位")}</div>` : ""}
+      ${mu ? `<p class="none">アイコンの数字=一致した情報源の数。ホバー(スマホは長押し)で出典と根拠。相性の出典: ${esc(srcNames)}・マップ集計</p>` : ""}
+    </details>`;
   body._builds = builds;
   body._side = c.side;
   body._personas = c.personas;
@@ -965,11 +968,17 @@ function buildHTML(b, side, personas) {
     return `<div class="prow2"><img src="${esc(sz(p.img || "", 84))}" alt="" loading="lazy"><div><b>${esc(n)}${pt ? `<i class="ppt">${pt}ポイント</i>` : ""}</b>${(p.effects || []).map((x) => `<span>${esc(x)}</span>`).join("")}</div></div>`;
   }).join("");
   const extra = Object.entries(pts).filter(([n]) => !(b.use || []).includes(n)).map(([n, v]) => `<i class="ppt">${esc(n)} ${v}ポイント</i>`).join("");
-  return `${tpl ? `<div class="btpl">テンプレ：<b>${esc(tpl.name)}</b></div>` : ""}
-    ${b.desc ? `<p class="bdesc">${esc(b.desc).replace(/「(.+?)」/g, "<b>「$1」</b>")}</p>` : ""}
-    ${extra ? `<div class="pextra">${extra}</div>` : ""}
-    ${rows ? `<div class="lbl2">この構成の主な人格</div><div class="prows">${rows}</div>` : ""}
-    ${b.tree ? `<div class="lbl2">人格の網（ゲーム画面）<small>タップで拡大・オレンジの線が振った場所、数字は 振った数/最大</small></div><img class="tree" src="${esc(b.tree)}" data-zoom="${esc(b.tree)}" alt="人格ツリー">` : ""}`;
+  const used = b.use || (b.perks || []).map((p) => p.name);
+  const icons = used.map((n) => { const p = P[n] || (b.perks || []).find((x) => x.name === n) || {};
+    return `<div class="ch" title="${esc(n + (p.effects ? "\n・" + p.effects.join("\n・") : ""))}"><img src="${esc(sz(p.img || "", 84))}" alt=""><span>${esc(n)}${pts[n] ? `<i class="ppt">${pts[n]}</i>` : ""}</span></div>`; }).join("");
+  return `${b.tree ? `<img class="tree" src="${esc(b.tree)}" data-zoom="${esc(b.tree)}" alt="人格ツリー">` : ""}
+    ${icons ? `<div class="row perk">${icons}</div>` : ""}
+    ${tpl ? `<div class="btpl">テンプレ：<b>${esc(tpl.name)}</b></div>` : ""}
+    ${b.desc || rows ? `<details class="more"><summary>この構成の説明と人格の効果</summary>
+      ${b.desc ? `<p class="bdesc">${esc(b.desc).replace(/「(.+?)」/g, "<b>「$1」</b>")}</p>` : ""}
+      ${extra ? `<div class="pextra">${extra}</div>` : ""}
+      ${rows ? `<div class="prows">${rows}</div>` : ""}
+      ${b.tree ? '<p class="none">画像はタップで拡大。色の付いた線が振った場所、数字は 振った数/最大。</p>' : ""}</details>` : ""}`;
 }
 function goBack() {
   history.pop();

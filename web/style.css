@@ -602,3 +602,13 @@ footer .credit { flex: none; font: italic 600 10px/1 var(--serif); letter-spacin
 .tpl .tc { display: flex; flex-wrap: wrap; gap: 3px; }
 .tpl .tc button { padding: 0; border: 0; background: none; cursor: pointer; }
 .tpl .tc img { width: 30px; height: 30px; border-radius: 7px; display: block; }
+/* くわしい情報は折りたたみ */
+details.more { margin: 10px 0 4px; border: 1px solid var(--line); border-radius: 10px; padding: 0 10px; background: rgba(255,255,255,.015); }
+details.more > summary { cursor: pointer; padding: 9px 0; font-size: 11.5px; color: var(--sub); list-style: none; }
+details.more > summary::before { content: "▸ "; color: var(--gold2); }
+details.more[open] > summary::before { content: "▾ "; }
+details.more[open] { padding-bottom: 8px; }
+#build .tree { display: block; margin: 2px 0 6px; }
+#build .row.perk .ppt { margin-left: 3px; padding: 1px 4px; font-size: 9px; }
+/* 人格の網: 余白を切って中央を大きく見せる (タップで全体を拡大) */
+#build .tree { aspect-ratio: 1.15 / 1; object-fit: cover; object-position: 50% 50%; max-width: 520px; }
