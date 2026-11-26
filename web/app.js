@@ -129,35 +129,37 @@ function render() {
 }
 
 /* ---------- 初心者おすすめ ---------- */
+// 扱いやすさ (YouTube解説) と 今の強さ (最新ティア) を足して並べる。ティアが変われば順番も変わる
+const EASE_PT = { S: 3, "S-": 2.6, A: 2.2, B: 1.5 };
+const TIER_PT = { S: 2, A: 1.6, B: 1.1, C: 0.6, D: 0, "?": 0.8 };
 let begSide = "s";
 function renderBeginner() {
   const B = D.beginner, list = $("#list");
-  if (!B) return (list.innerHTML = '<p class="none">おすすめデータがありません</p>');
+  if (!B || !B[begSide]) return (list.innerHTML = '<p class="none">おすすめデータがありません</p>');
   const S = B[begSide], src = B._sources || {};
-  const lv = (n) => `<span class="blv" title="操作の難しさ ${n}/3">${[1, 2, 3].map((i) => `<i class="${i <= n ? "on" : ""}"></i>`).join("")}</span>`;
-  const cards = S.pick.map((p, i) => {
-    const c = D.chars[p.name];
-    if (!c) return "";
-    return `<button class="bcard" data-ch="${esc(c.name)}">
+  const picks = S.pick.map((p, i) => ({ p, i, c: D.chars[p.name] })).filter((x) => x.c)
+    .map((x) => ({ ...x, pt: (EASE_PT[x.p.ease] || 2) + (TIER_PT[x.c.tier] ?? 0.8) }))
+    .sort((a, b) => b.pt - a.pt || a.i - b.i);
+  const cards = picks.map(({ p, c }, i) => `<button class="bcard" data-ch="${esc(c.name)}">
       <span class="brank">${i + 1}</span>
       <img src="${esc(sz(c.img, 128))}" loading="lazy" alt="">
       <span class="bbody">
-        <span class="bname">${esc(short(c.name))}<b class="tier ${c.tier}">${c.tier}</b>${lv(p.lv)}</span>
+        <span class="bname">${esc(short(c.name))}</span>
+        <span class="bbadges"><span class="bb ease" title="初心者の扱いやすさ（YouTube解説）">扱いやすさ <b>${esc(p.ease || "-")}</b></span><span class="bb now t-${c.tier}" title="今の環境での強さ（${esc(D.source.name)} ${esc(D.source.tierUpdated[begSide] || "")}）">今の強さ <b>${c.tier}</b></span>${p.note ? `<span class="bb note">${esc(p.note)}</span>` : ""}</span>
         <span class="bwhy">${esc(p.why)}</span>
         ${p.tip ? `<span class="btip"><em>コツ</em>${esc(p.tip)}</span>` : ""}
-        <span class="bsrc">${(p.src || []).map((k) => src[k] ? `<small>${esc(src[k].label)}</small>` : "").join("")}</span>
-      </span></button>`;
-  }).join("");
+        <span class="bsrc">${(p.src || []).map((k) => src[k] ? `<small data-url="${esc(src[k].url)}" title="${esc(src[k].label)}${src[k].date ? " (" + esc(src[k].date) + ")" : ""}">${esc(src[k].short || src[k].label)}</small>` : "").join("")}</span>
+      </span></button>`).join("");
   const avoid = (S.avoid || []).map((a) => {
     const c = D.chars[a.name];
-    return c ? `<button class="bavoid" data-ch="${esc(c.name)}"><img src="${esc(sz(c.img, 64))}" loading="lazy" alt=""><span><b>${esc(short(c.name))}</b><small>${esc(a.why)}</small></span></button>` : "";
+    return c ? `<button class="bavoid" data-ch="${esc(c.name)}"><img src="${esc(sz(c.img, 64))}" loading="lazy" alt=""><span><b>${esc(short(c.name))}<i class="tier ${c.tier}">${c.tier}</i></b><small>${esc(a.why)}</small></span></button>` : "";
   }).join("");
-  const links = Object.values(src).map((s) => `<u data-url="${esc(s.url)}">${esc(s.label)}</u>`).join(" ・ ");
+  const links = Object.values(src).filter((s) => s.url).map((s) => `<u data-url="${esc(s.url)}">${esc(s.label)}${s.date ? `（${esc(s.date)}）` : ""}</u>`).join(" ・ ");
   list.innerHTML = `<div class="beg">
     <div class="pseg bseg"><button data-bside="s" class="${begSide === "s" ? "on" : ""}">サバイバー</button><button data-bside="h" class="${begSide === "h" ? "on" : ""}">ハンター</button></div>
-    <p class="blead">${begSide === "s" ? "まずはここから。操作がシンプルで、ミスしても立て直しやすいサバイバー" : "まずはここから。操作がシンプルで、追いかける基本を覚えやすいハンター"}<br><small>●の数 = 操作の難しさ ・ タップで詳しい情報へ</small></p>
+    <p class="blead">${begSide === "s" ? "操作がシンプルで、今の環境でも戦えるサバイバー" : "操作がシンプルで、今の環境でも勝ちやすいハンター"}<br><small>「扱いやすさ」はYouTube解説、「今の強さ」は${esc(D.source.name)}の最新ティア。2つの合計で並べています（ティアが変わると順番も変わります）・タップで詳細へ</small></p>
     <div class="blist">${cards}</div>
-    <h4 class="grp"><span class="tn">最初は避けたいキャラ</span><small>慣れてから</small></h4>
+    <h4 class="grp"><span class="tn">${begSide === "s" ? "最初は避けたいキャラ" : "強いけど最初は難しいキャラ"}</span><small>慣れてから</small></h4>
     <div class="bavoids">${avoid}</div>
     <p class="bfoot">出典: ${links}（${esc(B.updated || "")} まとめ）</p></div>`;
 }

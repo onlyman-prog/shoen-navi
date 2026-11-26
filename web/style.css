@@ -527,9 +527,6 @@ footer .credit { flex: none; font: italic 600 10px/1 var(--serif); letter-spacin
 .bbody { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
 .bname { display: flex; align-items: center; gap: 6px; font: 700 15px/1.2 var(--serif); letter-spacing: .04em; }
 .bname .tier { position: static; font-size: 10px; padding: 1px 5px; border-radius: 4px; }
-.blv { display: inline-flex; gap: 3px; margin-left: auto; }
-.blv i { width: 7px; height: 7px; border-radius: 50%; background: rgba(255,255,255,.12); }
-.blv i.on { background: var(--gold2); box-shadow: 0 0 5px rgba(220,189,124,.5); }
 .bwhy { font-size: 12px; line-height: 1.55; }
 .btip { font-size: 11.5px; line-height: 1.5; color: var(--sub); }
 .btip em { font-style: normal; font-weight: 700; color: var(--gold2); margin-right: 6px; font-size: 10.5px; border: 1px solid rgba(220,189,124,.4); border-radius: 4px; padding: 0 4px; }
@@ -550,3 +547,15 @@ footer .credit { flex: none; font: italic 600 10px/1 var(--serif); letter-spacin
 .blist, .bavoids { grid-template-columns: repeat(auto-fill, minmax(min(320px, 100%), 1fr)); }
 .bavoids { grid-template-columns: repeat(auto-fill, minmax(min(220px, 100%), 1fr)); }
 @media (max-width: 420px) { .blist { grid-template-columns: minmax(0, 1fr); } }
+/* 初心者: 扱いやすさ / 今の強さ バッジ */
+.bbadges { display: flex; flex-wrap: wrap; gap: 4px; }
+.bb { font-size: 10px; line-height: 1; padding: 3px 6px; border-radius: 5px; border: 1px solid var(--line); color: var(--sub); white-space: nowrap; }
+.bb b { font: 800 11px/1 sans-serif; margin-left: 2px; color: var(--fg, #eee); }
+.bb.ease { border-color: rgba(220,189,124,.45); }
+.bb.ease b { color: var(--gold1); }
+.bb.now.t-S b { color: #ff7b7b; } .bb.now.t-A b { color: #ffb36b; } .bb.now.t-B b { color: #f0d36b; } .bb.now.t-C b { color: #7fb8ff; } .bb.now.t-D b { color: #a0a0a0; }
+.bb.note { border-color: rgba(120,200,140,.4); color: #9fd8ae; }
+.bsrc small { cursor: pointer; }
+.bsrc small:hover { color: var(--gold1); border-color: rgba(220,189,124,.5); }
+.bavoid b { display: flex; align-items: center; gap: 5px; }
+.bavoid .tier { position: static; width: 14px; height: 14px; font-size: 9px; font-style: normal; }
