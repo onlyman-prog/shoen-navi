@@ -188,14 +188,14 @@ function renderBeginner() {
   if (!B || !B[begSide]) return (list.innerHTML = '<p class="none">おすすめデータがありません</p>');
   const S = B[begSide], src = B._sources || {};
   const picks = S.pick.map((p, i) => ({ p, i, c: D.chars[p.name] })).filter((x) => x.c)
-    .map((x) => { const avg = tierAvg(x.c); const nt = avg ? numTier(avg) : x.c.tier; return { ...x, nt, pt: (EASE_PT[x.p.ease] || 2) + (TIER_PT[nt] ?? 0.8) }; })
+    .map((x) => { const nt = x.c.tier; return { ...x, nt, pt: (EASE_PT[x.p.ease] || 2) + (TIER_PT[nt] ?? 0.8) }; }) // 一覧(ランキング)と同じティア
     .sort((a, b) => b.pt - a.pt || a.i - b.i);
   const cards = picks.map(({ p, c, nt }, i) => `<button class="bcard" data-ch="${esc(c.name)}">
       <span class="brank">${i + 1}</span>
       <img src="${esc(sz(c.img, 128))}" loading="lazy" alt="">
       <span class="bbody">
         <span class="bname">${esc(short(c.name))}</span>
-        <span class="bbadges"><span class="bb ease" title="初心者の扱いやすさ（YouTube解説）">扱いやすさ <b>${esc(p.ease || "-")}</b></span><span class="bb now t-${nt}" title="今の環境での強さ（${esc(tierVotes(c).map((v) => v.label + " " + v.tier).join(" / "))} の平均）">今の強さ <b>${nt}</b></span>${p.note ? `<span class="bb note">${esc(p.note)}</span>` : ""}</span>
+        <span class="bbadges"><span class="bb ease" title="初心者の扱いやすさ（YouTube解説）">扱いやすさ <b>${esc(p.ease || "-")}</b></span><span class="bb now t-${nt}" title="今の環境での強さ（サバ/ハンター一覧のランキングと同じ：${esc(D.source.name)} ${esc(D.source.tierUpdated[begSide] || "")}）">今の強さ <b>${nt}</b></span>${p.note ? `<span class="bb note">${esc(p.note)}</span>` : ""}</span>
         <span class="bwhy">${esc(p.why)}</span>
         ${p.tip ? `<span class="btip"><em>コツ</em>${esc(p.tip)}</span>` : ""}
         <span class="bsrc">${(p.src || []).map((k) => src[k] ? `<small data-url="${esc(src[k].url)}" title="${esc(src[k].label)}${src[k].date ? " (" + esc(src[k].date) + ")" : ""}">${esc(src[k].short || src[k].label)}</small>` : "").join("")}</span>
@@ -207,7 +207,7 @@ function renderBeginner() {
   const links = Object.values(src).filter((s) => s.url).map((s) => `<u data-url="${esc(s.url)}">${esc(s.label)}${s.date ? `（${esc(s.date)}）` : ""}</u>`).join(" ・ ");
   list.innerHTML = `<div class="beg">
     <div class="pseg bseg"><button data-bside="s" class="${begSide === "s" ? "on" : ""}">サバイバー</button><button data-bside="h" class="${begSide === "h" ? "on" : ""}">ハンター</button></div>
-    <p class="blead">${begSide === "s" ? "操作がシンプルで、今の環境でも戦えるサバイバー" : "操作がシンプルで、今の環境でも勝ちやすいハンター"}<br><small>「扱いやすさ」はYouTube解説、「今の強さ」は複数サイトのティアの平均。2つの合計で並べています（ティアが変わると順番も変わります）・タップで詳細へ</small></p>
+    <p class="blead">${begSide === "s" ? "操作がシンプルで、今の環境でも戦えるサバイバー" : "操作がシンプルで、今の環境でも勝ちやすいハンター"}<br><small>「扱いやすさ」はYouTube解説、「今の強さ」はサバ/ハンター一覧のランキングと同じ。2つの合計で並べています（ティアが変わると順番も変わります）・タップで詳細へ</small></p>
     <div class="blist">${cards}</div>
     <h4 class="grp"><span class="tn">${begSide === "s" ? "最初は避けたいキャラ" : "強いけど最初は難しいキャラ"}</span><small>慣れてから</small></h4>
     <div class="bavoids">${avoid}</div>
