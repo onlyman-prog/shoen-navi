@@ -998,7 +998,7 @@ function webHTML(b, side, compact) {
   if (compact) return `<div class="webwrap ${side} mini"><svg class="web" viewBox="-112 -112 224 224" role="img" aria-label="人格の網">${lines}${nodes}</svg></div>`;
   return `<div class="webwrap ${side}"><svg class="web" viewBox="-112 -112 224 224" role="img" aria-label="人格の網">${lines}${nodes}</svg></div>
     <div class="wlist">${groups}</div>
-    <p class="none wnote">合計 ${total}ポイント・ゲーム画面の画像から自動で読み取り${w.low ? "（画像が小さいため推定。1/3 と 3/3 を取り違えることがあります）" : ""}。マスを長押し/ホバーで名前。</p>`;
+    <p class="none wnote">合計 ${total}ポイント・ゲーム画面の画像から自動で読み取り${total !== 26 ? "（合計が26にならないため、一部のマスを読み違えている可能性があります）" : w.low ? "（画像が小さいため推定）" : ""}。マスを長押し/ホバーで名前。</p>`;
 }
 /* 神ゲー以外の構成: 動画から読み取ったもの・自分でゲーム画面から記録したもの */
 function extraBuilds(c) {
@@ -1009,7 +1009,12 @@ function extraBuilds(c) {
     const s = V.sources[v.src] || {};
     out.push({ name: `${s.label || "動画"}`, title: v.name, web: v.web, use: ends(v.web), desc: `${v.name}（${s.label || ""} ${s.date || ""} の動画の画面から読み取り）`, srcUrl: s.url });
   }
-  for (const r of D.myPersonas || []) if (r.char === c.name) out.push({ name: r.name, web: r.web, use: ends(r.web), desc: `ゲーム画面から記録（${r.date}）`, mine: r.id });
+  const same = (w) => (c.builds || []).find((b) => b.web && JSON.stringify(Object.entries(b.web.pts).sort()) === JSON.stringify(Object.entries(w.pts).sort()));
+  for (const r of D.myPersonas || []) if (r.char === c.name) {
+    const s = same(r.web);
+    out.push({ name: r.name || "記録", web: r.web, use: ends(r.web), mine: r.id,
+      desc: `ゲーム画面から記録（${r.date}${(r.count || 1) > 1 ? `・同じ振り方を${r.count}回記録` : ""}）${s ? `。神ゲー攻略の「${s.name}」と同じ振り方` : ""}${r.check ? "。合計が26ポイントにならないため読み取りに自信なし" : ""}` });
+  }
   return out;
 }
 function buildHTML(b, side, personas) {
@@ -1091,11 +1096,12 @@ document.addEventListener("click", (e) => {
     toast("ゲーム画面を読み取り中…", 1500);
     api().capture_persona(c.name, c.side, "").then((r) => {
       if (!r || r.error) return toast((r && r.error) || "読み取りに失敗しました", 4000);
-      (D.myPersonas ||= []).push(r.rec);
+      D.myPersonas = r.recs;
       showDetail(key, true);
-      const chips = document.querySelectorAll("#dbody .chip[data-b]");
-      chips.length && chips[chips.length - 1].click();
-      toast(`記録しました（合計 ${r.total}ポイント）`, 2500);
+      const chips = [...document.querySelectorAll("#dbody .chip[data-b]")];
+      const hit = chips.find((x) => x.textContent === r.rec.name) || chips[chips.length - 1];
+      hit && hit.click();
+      toast(r.dup ? `同じ振り方の記録があったのでまとめました（${r.rec.name}・${r.rec.count}回目）` : `記録しました：${r.rec.name}（合計 ${r.total}ポイント）`, 3000);
     });
     return;
   }

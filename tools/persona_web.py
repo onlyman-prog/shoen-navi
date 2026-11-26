@@ -13,6 +13,7 @@ DATA = Path(__file__).resolve().parent.parent / "data"
 _L = json.load(open(DATA / "persona_layout.json", encoding="utf-8"))
 LAYOUT = np.array(_L["nodes"], np.float32)
 MAXV = _L["max"]  # マスごとの最大ポイント (1 or 3、中心は0)
+PARENT = {a: b for a, b in _L.get("edges", [])}  # 中心に向かって1つ手前のマス
 _D = json.load(open(DATA / "persona_digits.json", encoding="utf-8"))
 DIG = {k: np.array(t, np.float32) for k, t in zip(_D["keys"], _D["templates"])}
 KX, KY = np.array(_D["knnX"], np.float32), np.array(_D["knnY"])
@@ -102,7 +103,7 @@ def read(im, _lo=None):
     if not reg:
         return None
     cx, cy, u = reg
-    lowres = u < 260 if _lo is None else _lo
+    lowres = u < 250 if _lo is None else _lo
     k = 398.0 / u  # 基準 (高さ1080の画像で unit=398) に合わせて拡大縮小
     im = cv2.resize(im, None, fx=k, fy=k, interpolation=cv2.INTER_CUBIC if k > 1 else cv2.INTER_AREA)
     cx, cy, u = cx * k, cy * k, 398.0
@@ -142,27 +143,20 @@ def read(im, _lo=None):
         hs = 0.04 * u
         comps = sorted([st[j] for j in range(1, n) if hs * 0.55 <= st[j][3] <= hs * 1.6 and st[j][4] >= 8], key=lambda s: s[0])
         if lowres and len(LX):
-            # 低解像度: ラベルが白く明るい = 振ってある。最大1なら1、最大3なら 1〜3 を判定
+            # 中・低解像度: 最初の数字を 0〜3 で直接判定 (縮小した高解像度画像から作った見本との近さ)
+            v = _lo_glyph(c, hs)
             lit = _contrast(c) > thr
-            if not lit:
-                a = 0
-            elif MAXV[i] == 1:
-                a = 1
-            else:
-                v = _lo_glyph(c, hs)
-                a = 3  # 最大3のマスは 3/3 が大半なので、はっきり違うときだけ 1/2 にする
+            if v is None:
+                a = 0 if not lit else (1 if MAXV[i] == 1 else 3)
                 cnt = np.zeros(4)
-                if v is not None:
-                    sel = LY > 0
-                    d = np.sum((LX[sel] - v) ** 2, 1)
-                    cnt = np.bincount(LY[sel][np.argsort(d)[:9]], minlength=4)
-                    if cnt[1] >= 7:
-                        a = 1
-                    elif cnt[2] >= 6:
-                        a = 2
-            if lit and MAXV[i] == 3:
+            else:
+                d = np.sum((LX - v) ** 2, 1)
+                cnt = np.bincount(LY[np.argsort(d)[:9]], minlength=4)
+                a = int(cnt.argmax())
+            a = min(a, MAXV[i])
+            if a and MAXV[i] == 3:
                 p1[i] = float(cnt[1])
-            out.append((i, a, MAXV[i], lit)); continue
+            out.append((i, a, MAXV[i], a > 0)); continue
         elif len(comps) >= 3 or (len(comps) == 2 and comps[0][0] + comps[0][2] / 2 < c.shape[1] * 0.45):
             # 線が縦に重なると「/」が消えて2つになるので、左側の塊が最初の数字なら読む
             a = _digit(_glyph(m, comps[0]))
@@ -181,6 +175,9 @@ def read(im, _lo=None):
         out.append((i, min(a, MAXV[i]), MAXV[i], active))
     if lowres and p1:
         out = _fit_total(out, p1)
+    out = _closure(out)
+    if lowres and p1:
+        out = _fit_total(out, p1)
     if guess:  # 仮置きしたマスは合計が BUDGET になるように決める (1〜3)
         tot = sum(a or 0 for _, a, _, _ in out)
         need = BUDGET - (tot - 3 * len(guess))
@@ -190,6 +187,27 @@ def read(im, _lo=None):
                 vals[k] += 1
             out = [(n, vals[guess.index(n)] if n in guess else a, b, act) for n, a, b, act in out]
     return out
+
+
+def _closure(out):
+    """振ったマスの手前 (中心側) は必ず振ってある。つながっていないマスがあれば、
+    「手前を振ったことにする」か「そのマスを外す」の、合計が BUDGET に近くなる方を選ぶ"""
+    val = {n: (a or 0) for n, a, _, _ in out}
+    for _ in range(6):
+        broken = [n for n, v in val.items() if v and PARENT.get(n) is not None and PARENT[n] != CENTER and not val.get(PARENT[n])]
+        if not broken:
+            break
+        for n in broken:
+            if not val[n] or val.get(PARENT[n]):
+                continue
+            tot = sum(val.values())
+            p = PARENT[n]
+            add = 1 if MAXV[p] == 1 else max(1, min(3, BUDGET - tot))
+            if abs(tot + add - BUDGET) <= abs(tot - val[n] - BUDGET):
+                val[p] = add
+            else:
+                val[n] = 0
+    return [(n, (val[n] if val[n] or a is not None else None), b, act or val[n] > 0) for n, a, b, act in out]
 
 
 def _guess(guess, i):
@@ -204,17 +222,18 @@ def _fit_total(out, p1):
     """低解像度の推定: 合計が BUDGET から少しずれていたら、1/3 の判定に自信がないマスから直す"""
     tot = sum(a or 0 for _, a, _, _ in out)
     diff = tot - BUDGET
-    if diff == 0 or abs(diff) > 6 or diff % 2:
+    if diff == 0 or abs(diff) > 6:
         return out
     out = [list(x) for x in out]
-    if diff > 0:  # 多すぎ: 3 と読んだうち「1」らしいものを 1 に
+    if diff > 0:  # 多すぎ: 3 と読んだうち「1」らしいものを 1 に (奇数なら最後の1つは 2 に)
         cand = sorted([x for x in out if x[0] in p1 and x[1] == 3], key=lambda x: -p1[x[0]])
-        for x in cand[:diff // 2]:
-            x[1] = 1
+        for k, x in enumerate(cand[:(diff + 1) // 2]):
+            x[1] = 2 if (diff % 2 and k == (diff + 1) // 2 - 1) else 1
     else:  # 少なすぎ: 1 と読んだうち「1」らしさが低いものを 3 に
         cand = sorted([x for x in out if x[0] in p1 and x[1] == 1], key=lambda x: p1[x[0]])
-        for x in cand[:(-diff) // 2]:
-            x[1] = 3
+        need = -diff
+        for k, x in enumerate(cand[:(need + 1) // 2]):
+            x[1] = 2 if (need % 2 and k == (need + 1) // 2 - 1) else 3
     return [tuple(x) for x in out]
 
 
@@ -240,7 +259,7 @@ def analyze_url(url):
         return {"ok": False}
     pts = {str(n): int(a) for n, a, b, act in r if a}
     unk = [n for n, a, b, act in r if a is None and MAXV[n] > 0]
-    return {"ok": True, "pts": pts, "low": reg[2] < 260, "unknown": unk, "total": sum(pts.values())}
+    return {"ok": True, "pts": pts, "low": reg[2] < 300, "unknown": unk, "total": sum(pts.values())}
 
 
 def update_cache(chars, path=DATA / "persona_reads.json", log=print):
@@ -257,3 +276,77 @@ def update_cache(chars, path=DATA / "persona_reads.json", log=print):
                 log(f"persona read failed: {e}")
     path.write_text(json.dumps(cache, ensure_ascii=False), encoding="utf-8")
     return cache
+
+
+# ---------- 記録した構成の統合と名前付け ----------
+_NAMES = _L.get("names", {})
+
+
+def _ends(side, pts):
+    return {_NAMES[side][k] for k in pts if int(k) in END_IDX and k in _NAMES.get(side, {})}
+
+
+def type_name(side, pts):
+    e = _ends(side, pts)
+    if side == "s":
+        if "危機一髪" in e and "フライホイール効果" in e:
+            return "危機一髪＋フラホ型"
+        if "危機一髪" in e:
+            return "救助型"
+        if "フライホイール効果" in e and "膝蓋腱反射" in e:
+            return "フラホ＋膝蓋腱型"
+        if "フライホイール効果" in e:
+            return "フラホ型"
+        if "膝蓋腱反射" in e:
+            return "膝蓋腱型"
+        return "その他"
+    if e == {"引き留める", "裏向きカード"}:
+        return "右下型"
+    short = {"傲慢": "傲慢", "閉鎖空間": "閉鎖空間", "引き留める": "引き留め", "裏向きカード": "裏向き"}
+    ks = [short[x] for x in ("傲慢", "閉鎖空間", "引き留める", "裏向きカード") if x in e]
+    return "＋".join(ks) + "型" if ks else "その他"
+
+
+def fix_pts(pts):
+    """保存済みの読み取り結果にも「手前のマスは必ず振ってある」を当てはめる"""
+    out = _closure([(int(k), v, MAXV[int(k)], True) for k, v in pts.items()] +
+                   [(n, 0, MAXV[n], False) for n in range(len(LAYOUT)) if str(n) not in pts])
+    return {str(n): int(a) for n, a, _, _ in out if a}
+
+
+def merge_records(recs):
+    """同じキャラで振り方が同じ記録を1つにまとめ、型と違いが分かる名前を付ける"""
+    groups = {}
+    for r in recs:
+        key = (r["char"], json.dumps(sorted(r["web"]["pts"].items())))
+        g = groups.get(key)
+        if g:
+            g["count"] = g.get("count", 1) + r.get("count", 1)
+            g["date"] = max(g.get("date", ""), r.get("date", ""))
+            g["images"] = sorted(set(g.get("images", []) + r.get("images", [])))
+        else:
+            groups[key] = dict(r, count=r.get("count", 1))
+    out = list(groups.values())
+    by = {}
+    for r in out:
+        r["type"] = type_name(r["side"], r["web"]["pts"])
+        r["check"] = sum(r["web"]["pts"].values()) != BUDGET
+        by.setdefault((r["char"], r["type"]), []).append(r)
+    for (ch, tp), gg in by.items():
+        if len(gg) == 1:
+            gg[0]["name"] = tp
+            continue
+        N = _NAMES[gg[0]["side"]]
+        for g in gg:
+            mine = {N.get(k, k): v for k, v in g["web"]["pts"].items()}
+            others = [{N.get(k, k): v for k, v in o["web"]["pts"].items()} for o in gg if o is not g]
+            uniq = sorted([n for n, v in mine.items() if all(o.get(n, 0) != v for o in others)], key=lambda n: -mine[n])
+            g["name"] = f"{tp}・{uniq[0]}{mine[uniq[0]] if mine[uniq[0]] > 1 else ''}" if uniq else tp
+        seen, cnt = {}, {}
+        for g in gg:
+            cnt[g["name"]] = cnt.get(g["name"], 0) + 1
+        for g in gg:
+            if cnt[g["name"]] > 1:
+                seen[g["name"]] = seen.get(g["name"], 0) + 1
+                g["name"] = f"{g['name']}({seen[g['name']]})"
+    return out

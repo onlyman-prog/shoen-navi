@@ -223,13 +223,19 @@ class Api:
         if not pts:
             return {"error": "ポイントを振ったマスが読み取れませんでした"}
         reg = persona_web.register(img)
-        rec = {"id": int(time.time() * 1000), "char": char, "side": side, "name": label or time.strftime("記録 %m/%d %H:%M"),
-               "date": time.strftime("%Y-%m-%d"), "web": {"pts": pts, "low": bool(reg and reg[2] < 260)}}
+        rid = int(time.time() * 1000)
+        # 撮影した画面も残しておく (読み取りを改良したときに読み直せるように)
+        shot_dir = ROOT / "data" / "captures" / "persona"
+        shot_dir.mkdir(parents=True, exist_ok=True)
+        vision.imwrite(shot_dir / f"{rid}.png", img)
+        rec = {"id": rid, "char": char, "side": side, "date": time.strftime("%Y-%m-%d"), "images": [f"{rid}.png"],
+               "web": {"pts": pts, "low": bool(reg and reg[2] < 300)}}
         path = ROOT / "data" / "my_personas.json"
-        recs = read_json(path, [])
-        recs.append(rec)
+        recs = persona_web.merge_records(read_json(path, []) + [rec])
         write_json(path, recs)
-        return {"ok": True, "rec": rec, "total": sum(pts.values())}
+        key = json.dumps(sorted(pts.items()))
+        mine = next(r for r in recs if r["char"] == char and json.dumps(sorted(r["web"]["pts"].items())) == key)
+        return {"ok": True, "rec": mine, "recs": recs, "total": sum(pts.values()), "dup": mine.get("count", 1) > 1}
 
     def delete_persona(self, rid):
         path = ROOT / "data" / "my_personas.json"
