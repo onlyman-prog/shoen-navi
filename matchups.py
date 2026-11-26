@@ -87,6 +87,18 @@ def build(chars, map_info=None):
             add_map(c, mp, True, "omc", v.get("why", ""))
         for mp in v.get("bad", []):
             add_map(c, mp, False, "omc", v.get("why", ""))
+    # YouTube 等の追加ソース (videos: キーごとに strong/weak/maps)
+    for key, v in extra.get("videos", {}).items():
+        LABEL.setdefault(key, v.get("short", v.get("label", key)))
+        for a, b, why in v.get("strong", []):
+            add(a, b, key, why)
+        for a, b, why in v.get("weak", []):
+            add(b, a, key, why)
+        for c, mv in v.get("maps", {}).items():
+            for mp in mv.get("good", []):
+                add_map(c, mp, True, key, mv.get("why", ""))
+            for mp in mv.get("bad", []):
+                add_map(c, mp, False, key, mv.get("why", ""))
     # マップ集計 (2ソース以上で推されているもの)
     for mp, e in (map_info or {}).items():
         for sd in ("s", "h"):
@@ -120,7 +132,10 @@ def build(chars, map_info=None):
             else:
                 del gm[o]
         final[n] = {"good": pack(g), "bad": pack(b), "goodMaps": pack(gm), "badMaps": pack(bm)}
-    return {"sources": extra.get("_sources", {}), "chars": final}
+    srcs = dict(extra.get("_sources", {}))
+    for key, v in extra.get("videos", {}).items():
+        srcs[key] = {"label": v.get("label", key), "date": v.get("date", ""), "url": v.get("url", "")}
+    return {"sources": srcs, "chars": final}
 
 
 if __name__ == "__main__":

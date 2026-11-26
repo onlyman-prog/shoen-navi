@@ -559,3 +559,17 @@ footer .credit { flex: none; font: italic 600 10px/1 var(--serif); letter-spacin
 .bsrc small:hover { color: var(--gold1); border-color: rgba(220,189,124,.5); }
 .bavoid b { display: flex; align-items: center; gap: 5px; }
 .bavoid .tier { position: static; width: 14px; height: 14px; font-size: 9px; font-style: normal; }
+/* 複数サイトのティア評価 */
+.tvotes { display: flex; flex-wrap: wrap; gap: 6px; }
+.tv { display: inline-flex; align-items: center; gap: 5px; padding: 4px 8px 4px 4px; border: 1px solid var(--line); border-radius: 8px; background: rgba(255,255,255,.02); }
+.tv[data-url] { cursor: pointer; }
+.tv[data-url]:hover { border-color: rgba(220,189,124,.5); }
+.tv .tier { position: static; width: auto; min-width: 18px; padding: 0 3px; }
+.tv small { font-size: 10.5px; color: var(--sub); }
+.lbl small .tier { position: static; display: inline-grid; width: 15px; height: 15px; font-size: 9.5px; vertical-align: -3px; }
+.thin { margin: 6px 0 2px; padding: 6px 10px; border-radius: 8px; font-size: 11.5px; color: #e8c48a; background: rgba(220,160,60,.08); border: 1px solid rgba(220,160,60,.25); }
+.mline .mnone { padding: 3px 0 0; margin: 0; font-size: 11px; color: var(--sub); }
+.adv-out { background: #8a8f9c; }
+.mline .mnone { white-space: nowrap; }
+.mp div { gap: 6px; }
+.mp div small { flex: none; }

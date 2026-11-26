@@ -128,6 +128,32 @@ function render() {
   list.innerHTML = html + (cur !== null ? "</div>" : '<p class="none">該当なし</p>');
 }
 
+/* ---------- 複数サイトのティア評価 ---------- */
+const TIER_NUM = { "SS": 5.5, "S+": 5.5, "S": 5, "S-": 4.6, "A+": 4.3, "A": 4, "A-": 3.6, "B+": 3.3, "B": 3, "B-": 2.6, "C+": 2.3, "C": 2, "C-": 1.6, "D": 1 };
+const numTier = (v) => (v >= 4.75 ? "S" : v >= 3.75 ? "A" : v >= 2.75 ? "B" : v >= 1.75 ? "C" : "D");
+function tierVotes(c) {
+  const out = [];
+  if (c.tier && c.tier !== "?") out.push({ label: D.source.name, tier: c.tier, url: c.url, date: D.source.tierUpdated[c.side] || "" });
+  const X = D.tiersExtra;
+  if (X) for (const [k, s] of Object.entries(X.sources)) {
+    const t = X[c.side] && X[c.side][k] && X[c.side][k][c.name];
+    if (t) out.push({ label: s.label, tier: t, url: s["url_" + c.side] || "", date: s["date_" + c.side] || "", note: s["note_" + c.side] || "" });
+  }
+  return out;
+}
+function tierAvg(c) {
+  const v = tierVotes(c).map((x) => TIER_NUM[x.tier]).filter(Boolean);
+  return v.length ? v.reduce((a, b) => a + b, 0) / v.length : null;
+}
+function tierBox(c) {
+  const vs = tierVotes(c);
+  if (vs.length < 2) return "";
+  const avg = tierAvg(c), nums = vs.map((x) => TIER_NUM[x.tier]);
+  const split = Math.max(...nums) - Math.min(...nums) >= 2;
+  return `<div class="sec"><div class="lbl">ティア評価<small>${vs.length}サイト ・ 平均 <b class="tier ${numTier(avg)}">${numTier(avg)}</b>${split ? " ・ 評価が割れています" : ""}</small></div>
+    <div class="tvotes">${vs.map((x) => `<span class="tv" ${x.url ? `data-url="${esc(x.url)}"` : ""} title="${esc(x.label)} ${esc(x.date)}${x.note ? "（" + esc(x.note) + "）" : ""}"><b class="tier ${x.tier[0]}">${esc(x.tier)}</b><small>${esc(x.label)}</small></span>`).join("")}</div></div>`;
+}
+
 /* ---------- 初心者おすすめ ---------- */
 // 扱いやすさ (YouTube解説) と 今の強さ (最新ティア) を足して並べる。ティアが変われば順番も変わる
 const EASE_PT = { S: 3, "S-": 2.6, A: 2.2, B: 1.5 };
@@ -138,14 +164,14 @@ function renderBeginner() {
   if (!B || !B[begSide]) return (list.innerHTML = '<p class="none">おすすめデータがありません</p>');
   const S = B[begSide], src = B._sources || {};
   const picks = S.pick.map((p, i) => ({ p, i, c: D.chars[p.name] })).filter((x) => x.c)
-    .map((x) => ({ ...x, pt: (EASE_PT[x.p.ease] || 2) + (TIER_PT[x.c.tier] ?? 0.8) }))
+    .map((x) => { const avg = tierAvg(x.c); const nt = avg ? numTier(avg) : x.c.tier; return { ...x, nt, pt: (EASE_PT[x.p.ease] || 2) + (TIER_PT[nt] ?? 0.8) }; })
     .sort((a, b) => b.pt - a.pt || a.i - b.i);
-  const cards = picks.map(({ p, c }, i) => `<button class="bcard" data-ch="${esc(c.name)}">
+  const cards = picks.map(({ p, c, nt }, i) => `<button class="bcard" data-ch="${esc(c.name)}">
       <span class="brank">${i + 1}</span>
       <img src="${esc(sz(c.img, 128))}" loading="lazy" alt="">
       <span class="bbody">
         <span class="bname">${esc(short(c.name))}</span>
-        <span class="bbadges"><span class="bb ease" title="初心者の扱いやすさ（YouTube解説）">扱いやすさ <b>${esc(p.ease || "-")}</b></span><span class="bb now t-${c.tier}" title="今の環境での強さ（${esc(D.source.name)} ${esc(D.source.tierUpdated[begSide] || "")}）">今の強さ <b>${c.tier}</b></span>${p.note ? `<span class="bb note">${esc(p.note)}</span>` : ""}</span>
+        <span class="bbadges"><span class="bb ease" title="初心者の扱いやすさ（YouTube解説）">扱いやすさ <b>${esc(p.ease || "-")}</b></span><span class="bb now t-${nt}" title="今の環境での強さ（${esc(tierVotes(c).map((v) => v.label + " " + v.tier).join(" / "))} の平均）">今の強さ <b>${nt}</b></span>${p.note ? `<span class="bb note">${esc(p.note)}</span>` : ""}</span>
         <span class="bwhy">${esc(p.why)}</span>
         ${p.tip ? `<span class="btip"><em>コツ</em>${esc(p.tip)}</span>` : ""}
         <span class="bsrc">${(p.src || []).map((k) => src[k] ? `<small data-url="${esc(src[k].url)}" title="${esc(src[k].label)}${src[k].date ? " (" + esc(src[k].date) + ")" : ""}">${esc(src[k].short || src[k].label)}</small>` : "").join("")}</span>
@@ -157,7 +183,7 @@ function renderBeginner() {
   const links = Object.values(src).filter((s) => s.url).map((s) => `<u data-url="${esc(s.url)}">${esc(s.label)}${s.date ? `（${esc(s.date)}）` : ""}</u>`).join(" ・ ");
   list.innerHTML = `<div class="beg">
     <div class="pseg bseg"><button data-bside="s" class="${begSide === "s" ? "on" : ""}">サバイバー</button><button data-bside="h" class="${begSide === "h" ? "on" : ""}">ハンター</button></div>
-    <p class="blead">${begSide === "s" ? "操作がシンプルで、今の環境でも戦えるサバイバー" : "操作がシンプルで、今の環境でも勝ちやすいハンター"}<br><small>「扱いやすさ」はYouTube解説、「今の強さ」は${esc(D.source.name)}の最新ティア。2つの合計で並べています（ティアが変わると順番も変わります）・タップで詳細へ</small></p>
+    <p class="blead">${begSide === "s" ? "操作がシンプルで、今の環境でも戦えるサバイバー" : "操作がシンプルで、今の環境でも勝ちやすいハンター"}<br><small>「扱いやすさ」はYouTube解説、「今の強さ」は複数サイトのティアの平均。2つの合計で並べています（ティアが変わると順番も変わります）・タップで詳細へ</small></p>
     <div class="blist">${cards}</div>
     <h4 class="grp"><span class="tn">${begSide === "s" ? "最初は避けたいキャラ" : "強いけど最初は難しいキャラ"}</span><small>慣れてから</small></h4>
     <div class="bavoids">${avoid}</div>
@@ -316,9 +342,10 @@ function renderMaps() {
 }
 function mapHTML(m) {
   const a = m.dadv || m.adv;
-  const adv = a && ADV[a] ? `<i class="adv ${ADV[a][1]}">${ADV[a][0]}${m.dadv ? "" : "?"}</i>` : "";
+  const adv = a && ADV[a] ? `<i class="adv ${ADV[a][1]}">${ADV[a][0]}${m.dadv ? "" : "?"}</i>`
+    : m.cat === "ランク外" ? '<i class="adv adv-out">ランク外</i>' : "";
   const st = cnMap(m.name);
-  const cat = m.cat ? `<small>${m.cat === "ランク外" ? "ランク外" : "ランク" + m.cat + "マップ"}</small>` : "";
+  const cat = m.cat && m.cat !== "ランク外" ? `<small>ランク${m.cat}マップ</small>` : "";
   return `<button class="mp" data-map="${esc(m.name)}"><img src="${esc(sz(m.img, 320))}" loading="lazy" alt="">${adv}
     <div>${esc(m.name)}${st && st.all ? `<small class="wr">ハン勝${st.all[0]}%</small>` : cat}</div></button>`;
 }
@@ -808,7 +835,7 @@ function muRow(list, max = 14) {
     .replace("</button>", `<i class="srcn n${Math.min(x.n, 3)}">${x.n}</i></button>`)).join("")}</div>`;
 }
 function muMaps(list, cls) {
-  if (!list || !list.length) return '<p class="none">情報なし</p>';
+  if (!list || !list.length) return '<span class="none mnone">情報なし</span>';
   return `<div class="mchips">${list.map((x) => `<button class="mchip ${cls}" data-map="${esc(x.name)}" title="${esc("出典: " + x.src.join("・") + (x.why.length ? "\n" + x.why.join("\n") : ""))}">${esc(x.name)}<i>${x.n}</i></button>`).join("")}</div>`;
 }
 function iconRow(items) {
@@ -859,25 +886,30 @@ function showDetail(key, replace) {
   const mu = MU(c.name);
   const cnRow = (v, label) => v ? `<div class="cnrow"><span class="sl">${label}</span>
     <b>勝率 ${v.win}%</b><span>引分 ${v.draw}%</span><span>使用 ${v.use}%</span><span>BAN ${v.ban}%</span></div>` : "";
+  const nsrc = mu ? new Set(["good", "bad", "goodMaps", "badMaps"].flatMap((k) => mu[k].flatMap((x) => x.src))).size : 0;
+  const srcNames = Object.values((D.matchups && D.matchups.sources) || {}).map((s) => s.label).join("・");
   body.innerHTML = `
-    ${cs ? `<div class="sec cnbox"><div class="lbl">公式ランクデータ（中国版 S${esc(D.cn.char.season)}）<span class="src" data-url="${esc(D.cn.url)}">出典</span></div>
-      ${cnRow(cs.all, "全段位")}${cnRow(cs.top, "最上位")}</div>` : ""}
+    ${tierBox(c)}
+    ${mu ? `${nsrc <= 2 ? `<p class="thin">⚠ このキャラは相性情報が少なめです（情報源 ${nsrc}件）</p>` : ""}
+    <div class="sec"><div class="lbl"><span><span class="good">得意</span>${isS ? "なハンター" : "なサバイバー"}</span><small>数字=一致した情報源の数</small></div>${muRow(mu.good)}</div>
+    <div class="sec"><div class="lbl"><span><span class="bad">苦手</span>${isS ? "なハンター" : "なサバイバー"}</span></div>${muRow(mu.bad)}</div>
+    <div class="sec"><div class="lbl">マップ相性</div>
+      <div class="mline"><span class="good">得意</span>${muMaps(mu.goodMaps, "g")}</div>
+      <div class="mline"><span class="bad">苦手</span>${muMaps(mu.badMaps, "b")}</div></div>` : `
+    <div class="sec"><div class="lbl"><span><span class="good">得意</span>${isS ? "なハンター" : "なサバイバー"}</span></div>${row(isS ? c.goodH : c.goodS)}</div>
+    <div class="sec"><div class="lbl"><span><span class="bad">苦手</span>${isS ? "なハンター" : "なサバイバー"}</span></div>${row(isS ? c.badH : c.badS)}</div>
+    <div class="sec"><div class="lbl">得意マップ</div>
+      ${(() => { const ms = mapList().filter((m) => m[c.side].some((a) => a.name === c.name));
+        return ms.length ? `<div class="mrow">${ms.map(mapHTML).join("")}</div>` : '<p class="none">情報なし</p>'; })()}</div>`}
+    ${isS && c.goodS.length ? `<div class="sec"><div class="lbl">相性◎ 味方</div>${row(c.goodS)}</div>` : ""}
     <div class="sec"><div class="lbl">人格</div>
       ${builds.length > 1 ? `<div class="chips">${builds.map((x, i) => `<button class="chip ${i ? "" : "on"}" data-b="${i}">${esc(x.name)}</button>`).join("")}</div>` : ""}
       <div id="build">${b ? buildHTML(b) : '<p class="none">情報なし</p>'}</div>
     </div>
     ${!isS ? `<div class="sec"><div class="lbl">補助特質</div>${c.traits.length ? iconRow(c.traits) : '<p class="none">情報なし</p>'}</div>` : ""}
-    ${mu ? `<div class="sec"><div class="lbl"><span class="good">得意</span>${isS ? "なハンター" : "なサバイバー"}<small>数字=一致した情報源の数</small></div>${muRow(mu.good)}</div>
-    <div class="sec"><div class="lbl"><span class="bad">苦手</span>${isS ? "なハンター" : "なサバイバー"}</div>${muRow(mu.bad)}</div>
-    <div class="sec"><div class="lbl">マップ相性</div>
-      <div class="mline"><span class="good">得意</span>${muMaps(mu.goodMaps, "g")}</div>
-      <div class="mline"><span class="bad">苦手</span>${muMaps(mu.badMaps, "b")}</div></div>` : `
-    <div class="sec"><div class="lbl"><span class="good">得意</span>${isS ? "なハンター" : "なサバイバー"}</div>${row(isS ? c.goodH : c.goodS)}</div>
-    <div class="sec"><div class="lbl"><span class="bad">苦手</span>${isS ? "なハンター" : "なサバイバー"}</div>${row(isS ? c.badH : c.badS)}</div>`}
-    ${isS && c.goodS.length ? `<div class="sec"><div class="lbl">相性◎ 味方</div>${row(c.goodS)}</div>` : ""}
-    ${mu ? `<p class="none">ホバー(スマホは長押し)で出典と根拠。出典: 神ゲー攻略・5chWiki本文・Reddit英語圏相性表・中国記事・YouTube(OMC)・マップ集計</p>` : `<div class="sec"><div class="lbl">得意マップ</div>
-      ${(() => { const ms = mapList().filter((m) => m[c.side].some((a) => a.name === c.name));
-        return ms.length ? `<div class="mrow">${ms.map(mapHTML).join("")}</div>` : '<p class="none">情報なし</p>'; })()}</div>`}`;
+    ${cs ? `<div class="sec cnbox"><div class="lbl">公式ランクデータ（中国版 S${esc(D.cn.char.season)}）<span class="src" data-url="${esc(D.cn.url)}">出典</span></div>
+      ${cnRow(cs.all, "全段位")}${cnRow(cs.top, "最上位")}</div>` : ""}
+    ${mu ? `<p class="none">ホバー(スマホは長押し)で出典と根拠。相性の出典: ${esc(srcNames)}・マップ集計</p>` : ""}`;
   body._builds = builds;
 }
 function buildHTML(b) {

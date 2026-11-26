@@ -84,10 +84,11 @@ class Api:
     # ================= JSから呼ぶ =================
     def get_data(self):
         data = scraper.load_cache()
-        # 初心者おすすめ (手でまとめたデータ。キャッシュとは別に毎回読む)
+        # 初心者おすすめ・他サイトのティア (手でまとめたデータ。キャッシュとは別に毎回読む)
         try:
             if data:
                 data["beginner"] = json.loads((ROOT / "data" / "beginner.json").read_text(encoding="utf-8"))
+                data["tiersExtra"] = json.loads((ROOT / "data" / "tiers_extra.json").read_text(encoding="utf-8"))
         except Exception:
             pass
         # ゲーム画面から集めたキャラ画像があれば使う
