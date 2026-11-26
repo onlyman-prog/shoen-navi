@@ -104,6 +104,33 @@ def parse_tier(page, side):
     return tiers, ("/".join(m.groups()) if m else "")
 
 
+def persona_table(fragment):
+    """「主要人格の詳細」表: [{name, img, effects[]}]"""
+    i = fragment.find("主要人格の詳細")
+    if i < 0:
+        return []
+    tb = re.search(r"<table.*?</table>", fragment[i:], re.S)
+    out = []
+    for row in re.findall(r"<tr>(.*?)</tr>", tb.group(0) if tb else "", re.S):
+        tds = re.findall(r"<td[^>]*>(.*?)</td>", row, re.S)
+        if len(tds) < 2:
+            continue
+        img = first_img(tds[0])
+        name = clean(tds[0].split("<br>")[-1]) or (re.search(r'alt="([^"]*)"', tds[0]) or [None, ""])[1].replace("第五人格_", "")
+        effects = [clean(x).lstrip("・") for x in re.split(r"<br\s*/?>", tds[1]) if clean(x)]
+        if name:
+            out.append({"name": name, "img": img, "effects": effects})
+    return out
+
+
+def build_points(desc):
+    """説明文の「〇〇に3振り」「〇〇を2振って」などからポイントを拾う"""
+    pts = {}
+    for m in re.finditer(r"「?([^「」、。\s]{2,12}?)」?(?:に|を)(\d)(?:振|ポイント)", desc):
+        pts[m.group(1)] = int(m.group(2))
+    return pts
+
+
 def parse_char(page):
     h2 = sections(page, 2)
     h3 = sections(page, 3)
@@ -114,8 +141,29 @@ def parse_char(page):
             for t3, b3 in sections(body, 3).items():
                 if "補助特質" in t3:
                     continue
-                perks = [{"name": l["name"], "img": l["img"]} for l in links(b3)]
-                d["builds"].append({"name": re.sub(r"おすすめ|人格|構成", "", t3) or "おすすめ", "tree": first_img(b3), "perks": perks})
+                main = persona_table(b3)
+                desc = " ".join(clean(x) for x in re.findall(r"<p>(.*?)</p>", b3.split("<h4")[0], re.S) if clean(x))
+                d["builds"].append({"name": re.sub(r"おすすめ|人格|構成", "", t3) or "おすすめ", "tree": first_img(b3),
+                                    "perks": [{"name": m["name"], "img": m["img"]} for m in main],
+                                    "main": main, "desc": desc, "points": build_points(desc)})
+            # 主要人格の効果はキャラ単位でまとめる (表が全構成共通で最後の構成の下にだけあることが多い)
+            allp = {}
+            for b in d["builds"]:
+                for m in b["main"]:
+                    allp.setdefault(m["name"], m)
+            for m in persona_table(body):
+                allp.setdefault(m["name"], m)
+            d["personas"] = list(allp.values())
+            shared_last = len(d["builds"]) > 1 and not any(x["main"] for x in d["builds"][:-1])
+            for b in d["builds"]:
+                # 自分の表があればそれ (最後の構成に全構成共通の表が付いている場合は説明文で絞る)
+                own = [m["name"] for m in b["main"]]
+                shared = shared_last and b is d["builds"][-1]
+                used = ([n for n in own if n in b["desc"]] if shared else own) or [n for n in allp if n in b["desc"]] or list(allp)
+                b["use"] = used
+                b["perks"] = [{"name": n, "img": allp[n]["img"]} for n in used]
+            for b in d["builds"]:
+                del b["main"]
 
     for title, body in h3.items():
         if "おすすめの補助特質" in title:

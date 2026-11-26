@@ -89,6 +89,7 @@ def build(chars, map_info=None):
             add_map(c, mp, False, "omc", v.get("why", ""))
     # YouTube 等の追加ソース (videos: キーごとに strong/weak/maps)
     for key, v in extra.get("videos", {}).items():
+        key = v.get("as", key)  # 既存ソースの追加分 (例: 5chWiki) は同じ情報源として数える
         LABEL.setdefault(key, v.get("short", v.get("label", key)))
         for a, b, why in v.get("strong", []):
             add(a, b, key, why)
@@ -134,6 +135,8 @@ def build(chars, map_info=None):
         final[n] = {"good": pack(g), "bad": pack(b), "goodMaps": pack(gm), "badMaps": pack(bm)}
     srcs = dict(extra.get("_sources", {}))
     for key, v in extra.get("videos", {}).items():
+        if "as" in v:
+            continue
         srcs[key] = {"label": v.get("label", key), "date": v.get("date", ""), "url": v.get("url", "")}
     return {"sources": srcs, "chars": final}
 

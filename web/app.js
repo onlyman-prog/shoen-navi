@@ -154,6 +154,20 @@ function tierBox(c) {
     <div class="tvotes">${vs.map((x) => `<span class="tv" ${x.url ? `data-url="${esc(x.url)}"` : ""} title="${esc(x.label)} ${esc(x.date)}${x.note ? "（" + esc(x.note) + "）" : ""}"><b class="tier ${x.tier[0]}">${esc(x.tier)}</b><small>${esc(x.label)}</small></span>`).join("")}</div></div>`;
 }
 
+/* 人格テンプレのまとめ (全キャラのおすすめ構成から集計) */
+function tplSummary(side) {
+  const cs = chars(side), by = {};
+  for (const c of cs) for (const k of new Set((c.builds || []).map((b) => tplOf(side, b)))) (by[k] ||= []).push(c);
+  const list = TPL[side].filter((x) => by[x.k]);
+  const core = list.filter((x) => x.k !== "other");
+  return `<h4 class="grp"><span class="tn">人格テンプレ</span><small>${core.length}パターン用意すれば${side === "s" ? "ほぼ全サバイバー" : "全ハンター"}に対応</small></h4>
+    <div class="tpls">${list.map((x) => `<div class="tpl"><div class="th"><b>${esc(x.name)}</b><small>${by[x.k].length}キャラ</small></div>
+      ${x.key.length ? `<div class="tk">${x.key.map((k) => `<i>${esc(k)}</i>`).join("")}</div>` : ""}<p>${esc(x.note)}</p>
+      <div class="tc">${by[x.k].map((c) => `<button data-ch="${esc(c.name)}" title="${esc(c.name)}"><img src="${esc(sz(c.img, 48))}" alt="" loading="lazy"></button>`).join("")}</div></div>`).join("")}</div>
+    ${side === "s" ? '<p class="none">2026年7月の新人格: 「愛着効果」（味方の治療が速くなり約8割で手を離しても完了）は全サバイバーにおすすめ、アイテム消費型は「使い切った後の箱開け高速化」も強い（唯のん 2026/7）。</p>' : ""}
+    <p class="none">各キャラのおすすめ構成（${esc(D.source.name)}）を自動で分類した結果。キャラ詳細の「人格」にもテンプレ名を表示しています。</p>`;
+}
+
 /* ---------- 初心者おすすめ ---------- */
 // 扱いやすさ (YouTube解説) と 今の強さ (最新ティア) を足して並べる。ティアが変われば順番も変わる
 const EASE_PT = { S: 3, "S-": 2.6, A: 2.2, B: 1.5 };
@@ -187,6 +201,7 @@ function renderBeginner() {
     <div class="blist">${cards}</div>
     <h4 class="grp"><span class="tn">${begSide === "s" ? "最初は避けたいキャラ" : "強いけど最初は難しいキャラ"}</span><small>慣れてから</small></h4>
     <div class="bavoids">${avoid}</div>
+    ${tplSummary(begSide)}
     <p class="bfoot">出典: ${links}（${esc(B.updated || "")} まとめ）</p></div>`;
 }
 
@@ -904,16 +919,57 @@ function showDetail(key, replace) {
     ${isS && c.goodS.length ? `<div class="sec"><div class="lbl">相性◎ 味方</div>${row(c.goodS)}</div>` : ""}
     <div class="sec"><div class="lbl">人格</div>
       ${builds.length > 1 ? `<div class="chips">${builds.map((x, i) => `<button class="chip ${i ? "" : "on"}" data-b="${i}">${esc(x.name)}</button>`).join("")}</div>` : ""}
-      <div id="build">${b ? buildHTML(b) : '<p class="none">情報なし</p>'}</div>
+      <div id="build">${b ? buildHTML(b, c.side, c.personas) : '<p class="none">情報なし</p>'}</div>
     </div>
     ${!isS ? `<div class="sec"><div class="lbl">補助特質</div>${c.traits.length ? iconRow(c.traits) : '<p class="none">情報なし</p>'}</div>` : ""}
     ${cs ? `<div class="sec cnbox"><div class="lbl">公式ランクデータ（中国版 S${esc(D.cn.char.season)}）<span class="src" data-url="${esc(D.cn.url)}">出典</span></div>
       ${cnRow(cs.all, "全段位")}${cnRow(cs.top, "最上位")}</div>` : ""}
     ${mu ? `<p class="none">ホバー(スマホは長押し)で出典と根拠。相性の出典: ${esc(srcNames)}・マップ集計</p>` : ""}`;
   body._builds = builds;
+  body._side = c.side;
+  body._personas = c.personas;
 }
-function buildHTML(b) {
-  return iconRow(b.perks) + (b.tree ? `<img class="tree" src="${esc(b.tree)}" data-zoom="${esc(b.tree)}" alt="人格ツリー">` : "");
+/* 人格テンプレ: 構成をキャラ共通のパターンに分類 */
+const TPL = {
+  s: [
+    { k: "chase", name: "チェイス型", key: ["膝蓋腱反射", "フライホイール効果"], note: "追われても時間を稼ぐ。ほとんどのサバイバーの基本" },
+    { k: "rescue", name: "救助型", key: ["危機一髪"], note: "救助に行く役。危機一髪＋中治り/癒合が定番" },
+    { k: "both", name: "危機一髪＋フライホイール", key: ["危機一髪", "フライホイール効果"], note: "救助もチェイスもこなす万能型" },
+    { k: "other", name: "キャラ専用", key: [], note: "解読型（弁護士・心眼）や怪力（踊り子）など" },
+  ],
+  h: [
+    { k: "rb", name: "右下型", key: ["引き留める", "裏向きカード"], note: "通電後の逆転＋補助特質の切り替え。大多数のハンターの基本" },
+    { k: "arro", name: "傲慢型", key: ["傲慢", "引き留める", "破壊欲"], note: "存在感を早くためたいハンター向け" },
+    { k: "chase", name: "チェイス特化型", key: ["破壊欲", "閉鎖空間", "衝動", "狂暴"], note: "板・窓に強くして初動のチェイスを速くする" },
+  ],
+};
+function tplOf(side, b) {
+  const u = new Set(b.use || (b.perks || []).map((p) => p.name)), nm = b.name || "";
+  if (side === "s") {
+    if (u.has("危機一髪") && u.has("フライホイール効果")) return "both";
+    if (u.has("危機一髪") || nm.includes("救助")) return "rescue";
+    if (u.has("フライホイール効果") || u.has("膝蓋腱反射") || nm.includes("チェイス")) return "chase";
+    return "other";
+  }
+  if (u.has("傲慢") || nm.includes("傲慢")) return "arro";
+  if (u.has("引き留める") || u.has("裏向きカード") || nm.includes("右下")) return "rb";
+  return "chase";
+}
+function buildHTML(b, side, personas) {
+  const P = Object.fromEntries((personas || []).map((p) => [p.name, p]));
+  const tpl = TPL[side].find((x) => x.k === tplOf(side, b));
+  const pts = b.points || {};
+  const rows = (b.use || (b.perks || []).map((p) => p.name)).map((n) => {
+    const p = P[n] || (b.perks || []).find((x) => x.name === n) || { name: n };
+    const pt = pts[n];
+    return `<div class="prow2"><img src="${esc(sz(p.img || "", 84))}" alt="" loading="lazy"><div><b>${esc(n)}${pt ? `<i class="ppt">${pt}ポイント</i>` : ""}</b>${(p.effects || []).map((x) => `<span>${esc(x)}</span>`).join("")}</div></div>`;
+  }).join("");
+  const extra = Object.entries(pts).filter(([n]) => !(b.use || []).includes(n)).map(([n, v]) => `<i class="ppt">${esc(n)} ${v}ポイント</i>`).join("");
+  return `${tpl ? `<div class="btpl">テンプレ：<b>${esc(tpl.name)}</b></div>` : ""}
+    ${b.desc ? `<p class="bdesc">${esc(b.desc).replace(/「(.+?)」/g, "<b>「$1」</b>")}</p>` : ""}
+    ${extra ? `<div class="pextra">${extra}</div>` : ""}
+    ${rows ? `<div class="lbl2">この構成の主な人格</div><div class="prows">${rows}</div>` : ""}
+    ${b.tree ? `<div class="lbl2">人格の網（ゲーム画面）<small>タップで拡大・オレンジの線が振った場所、数字は 振った数/最大</small></div><img class="tree" src="${esc(b.tree)}" data-zoom="${esc(b.tree)}" alt="人格ツリー">` : ""}`;
 }
 function goBack() {
   history.pop();
@@ -966,7 +1022,7 @@ document.addEventListener("click", (e) => {
   const bb = e.target.closest("[data-b]");
   if (bb) {
     document.querySelectorAll("#dbody .chip").forEach((x) => x.classList.toggle("on", x === bb));
-    $("#build").innerHTML = buildHTML($("#dbody")._builds[+bb.dataset.b]);
+    $("#build").innerHTML = buildHTML($("#dbody")._builds[+bb.dataset.b], $("#dbody")._side, $("#dbody")._personas);
     return;
   }
   const pm = e.target.closest("[data-pm]");
