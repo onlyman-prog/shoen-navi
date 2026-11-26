@@ -53,6 +53,12 @@
    "url": "https://www.youtube.com/watch?v=roI1XJm6im4",
    "date": "2026-09",
    "short": "ぱりぴずむ"
+  },
+  "bbp": {
+   "label": "BBlackPhoenix(英) The BEST Hunters for Beginners",
+   "url": "https://www.youtube.com/watch?v=0qZk_NCzBJg",
+   "date": "2025-10",
+   "short": "英語圏"
   }
  },
  "updated": "2026-11-26",
@@ -252,7 +258,8 @@
     "src": [
      "omcH",
      "omcHwin",
-     "tomato"
+     "tomato",
+     "bbp"
     ]
    },
    {
@@ -263,7 +270,8 @@
     "src": [
      "omcH",
      "paripi",
-     "tomato"
+     "tomato",
+     "bbp"
     ]
    },
    {
@@ -273,7 +281,8 @@
     "tip": "覗きを解除してから攻撃。カラス瞬間移動は1人飛ばした後に",
     "src": [
      "omcH",
-     "wiki"
+     "wiki",
+     "bbp"
     ]
    },
    {
@@ -285,7 +294,8 @@
     "src": [
      "omcH",
      "omcHwin",
-     "wiki"
+     "wiki",
+     "bbp"
     ]
    },
    {
@@ -337,7 +347,8 @@
     "tip": "板が倒れたら風力を使う前にまず割る",
     "src": [
      "omcH",
-     "wiki"
+     "wiki",
+     "bbp"
     ]
    },
    {
@@ -349,7 +360,8 @@
     "src": [
      "omcH",
      "omcHwin",
-     "paripi"
+     "paripi",
+     "bbp"
     ]
    }
   ],
