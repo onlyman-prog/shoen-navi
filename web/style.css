@@ -507,3 +507,46 @@ footer .credit { flex: none; font: italic 600 10px/1 var(--serif); letter-spacin
 @media (prefers-reduced-motion: reduce) {
   #splash *, #splash::before, #splash *::before, #splash *::after { animation-duration: .01s !important; animation-delay: 0s !important; }
 }
+
+/* ===== 初心者おすすめ ===== */
+.beg { max-width: 760px; margin: 0 auto; padding: 4px 2px 16px; }
+.bseg { display: flex; gap: 6px; margin: 6px 0 10px; }
+.bseg button { flex: 1; padding: 9px 0; border-radius: 10px; border: 1px solid var(--line); background: rgba(255,255,255,.03);
+  color: var(--sub); font: 700 13px/1 var(--serif); letter-spacing: .12em; cursor: pointer; transition: .15s; }
+.bseg button.on { color: #1a1408; border-color: transparent; background: linear-gradient(180deg, var(--gold1), var(--gold2)); box-shadow: 0 4px 14px rgba(201,163,92,.25); }
+.blead { margin: 0 2px 12px; font-size: 12.5px; line-height: 1.6; color: var(--fg, #e8e4da); }
+.blead small { color: var(--sub); font-size: 10.5px; }
+.blist { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 8px; }
+.bcard { position: relative; display: flex; gap: 12px; align-items: flex-start; text-align: left; padding: 10px 12px 10px 10px; cursor: pointer;
+  border: 1px solid var(--line); border-radius: 14px; color: inherit; font: inherit;
+  background: linear-gradient(135deg, rgba(220,189,124,.07), rgba(255,255,255,.015) 55%); transition: transform .15s, border-color .15s, box-shadow .15s; }
+.bcard:hover { transform: translateY(-1px); border-color: rgba(220,189,124,.45); box-shadow: 0 8px 22px #0006; }
+.bcard img { width: 64px; height: 64px; border-radius: 10px; object-fit: cover; flex: none; box-shadow: 0 0 0 1px rgba(220,189,124,.3); }
+.brank { position: absolute; left: 4px; top: 4px; z-index: 1; min-width: 20px; height: 20px; padding: 0 5px; border-radius: 10px; display: grid; place-items: center;
+  font: 700 11px/1 var(--serif); color: #1a1408; background: linear-gradient(180deg, var(--gold1), var(--gold2)); box-shadow: 0 2px 6px #0008; }
+.bbody { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.bname { display: flex; align-items: center; gap: 6px; font: 700 15px/1.2 var(--serif); letter-spacing: .04em; }
+.bname .tier { position: static; font-size: 10px; padding: 1px 5px; border-radius: 4px; }
+.blv { display: inline-flex; gap: 3px; margin-left: auto; }
+.blv i { width: 7px; height: 7px; border-radius: 50%; background: rgba(255,255,255,.12); }
+.blv i.on { background: var(--gold2); box-shadow: 0 0 5px rgba(220,189,124,.5); }
+.bwhy { font-size: 12px; line-height: 1.55; }
+.btip { font-size: 11.5px; line-height: 1.5; color: var(--sub); }
+.btip em { font-style: normal; font-weight: 700; color: var(--gold2); margin-right: 6px; font-size: 10.5px; border: 1px solid rgba(220,189,124,.4); border-radius: 4px; padding: 0 4px; }
+.bsrc { display: flex; gap: 4px; flex-wrap: wrap; }
+.bsrc small { font-size: 9.5px; color: var(--sub); border: 1px solid var(--line); border-radius: 999px; padding: 1px 7px; }
+.bavoids { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 6px; }
+.bavoid { display: flex; gap: 8px; align-items: center; text-align: left; padding: 6px 8px; border-radius: 10px; cursor: pointer;
+  border: 1px solid var(--line); background: rgba(255,255,255,.02); color: inherit; font: inherit; opacity: .85; }
+.bavoid:hover { opacity: 1; border-color: rgba(200,90,90,.5); }
+.bavoid img { width: 36px; height: 36px; border-radius: 8px; object-fit: cover; filter: grayscale(.5); flex: none; }
+.bavoid span { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.bavoid b { font: 700 12.5px/1.2 var(--serif); }
+.bavoid small { font-size: 10.5px; color: var(--sub); line-height: 1.4; }
+.bfoot { margin: 14px 2px 0; font-size: 10.5px; color: var(--sub); }
+.bfoot u { cursor: pointer; }
+@media (max-width: 420px) { .blist { grid-template-columns: 1fr; } .bcard img { width: 56px; height: 56px; } }
+.bcard, .bavoid { white-space: normal; min-width: 0; }
+.blist, .bavoids { grid-template-columns: repeat(auto-fill, minmax(min(320px, 100%), 1fr)); }
+.bavoids { grid-template-columns: repeat(auto-fill, minmax(min(220px, 100%), 1fr)); }
+@media (max-width: 420px) { .blist { grid-template-columns: minmax(0, 1fr); } }

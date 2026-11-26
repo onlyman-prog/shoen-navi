@@ -398,6 +398,23 @@ class IconHarvester:
                 # 既に保存済みの画像は確定扱い(後から上書きしない。足りないキャラだけ集める)
                 self.have[f.stem] = float("inf")
 
+    @staticmethod
+    def _sig(im):
+        g = cv2.cvtColor(cv2.resize(im, (32, 32), interpolation=cv2.INTER_AREA), cv2.COLOR_BGR2GRAY).astype(np.float32).ravel()
+        g -= g.mean()
+        return g / (np.linalg.norm(g) + 1e-6)
+
+    def _dup(self, k, face):
+        """別キャラとして保存済みの顔とほぼ同じなら True (「女王蜂」→「血の女王」のような名前の読み違い対策)。"""
+        s = self._sig(face)
+        for f in self.dir.glob("*.png"):
+            if f.stem == k:
+                continue
+            im = vision.imread(f)
+            if im is not None and float(s @ self._sig(im)) > 0.85:
+                return True
+        return False
+
     # --- 並びの推定 ---
     @staticmethod
     def _spacing(anchors, H):
@@ -564,6 +581,8 @@ class IconHarvester:
             q = quality(face, banner_in_use(img, rect))
             if self.have.get(k, 0) >= q:
                 continue  # 既にもっと良い画像がある
+            if self._dup(k, face):
+                continue  # 名前の読み違い(別キャラの顔と同じ)
             self.dir.mkdir(parents=True, exist_ok=True)
             vision.imwrite(self.dir / f"{k}.png", face)
             self.have[k] = q
@@ -588,7 +607,7 @@ class IconHarvester:
                 q = quality(face, banner_in_use(img, (x0, y0, x1, y1)))
                 if not fixed:
                     q *= 0.5  # 位置を枠で確認できなかったので仮扱い(確認できた画像が来たら差し替え)
-                if self.have.get(k, 0) >= q:
+                if self.have.get(k, 0) >= q or self._dup(k, face):
                     continue
                 self.dir.mkdir(parents=True, exist_ok=True)
                 vision.imwrite(self.dir / f"{k}.png", face)

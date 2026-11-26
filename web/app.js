@@ -110,6 +110,7 @@ function render() {
   if (tab === "m") return renderMaps();
   if (tab === "pl") return renderPlaces();
   if (tab === "ban") return renderBan(q);
+  if (tab === "beg") return renderBeginner();
 
   let cs = chars(tab).filter((c) => (!q || c.name.includes(q)) && (!tierOn.size || tierOn.has(c.tier)));
   cs.sort((a, b) => RANK[a.tier] - RANK[b.tier]);
@@ -125,6 +126,40 @@ function render() {
     html += chHTML(c, { tier: false });
   }
   list.innerHTML = html + (cur !== null ? "</div>" : '<p class="none">該当なし</p>');
+}
+
+/* ---------- 初心者おすすめ ---------- */
+let begSide = "s";
+function renderBeginner() {
+  const B = D.beginner, list = $("#list");
+  if (!B) return (list.innerHTML = '<p class="none">おすすめデータがありません</p>');
+  const S = B[begSide], src = B._sources || {};
+  const lv = (n) => `<span class="blv" title="操作の難しさ ${n}/3">${[1, 2, 3].map((i) => `<i class="${i <= n ? "on" : ""}"></i>`).join("")}</span>`;
+  const cards = S.pick.map((p, i) => {
+    const c = D.chars[p.name];
+    if (!c) return "";
+    return `<button class="bcard" data-ch="${esc(c.name)}">
+      <span class="brank">${i + 1}</span>
+      <img src="${esc(sz(c.img, 128))}" loading="lazy" alt="">
+      <span class="bbody">
+        <span class="bname">${esc(short(c.name))}<b class="tier ${c.tier}">${c.tier}</b>${lv(p.lv)}</span>
+        <span class="bwhy">${esc(p.why)}</span>
+        ${p.tip ? `<span class="btip"><em>コツ</em>${esc(p.tip)}</span>` : ""}
+        <span class="bsrc">${(p.src || []).map((k) => src[k] ? `<small>${esc(src[k].label)}</small>` : "").join("")}</span>
+      </span></button>`;
+  }).join("");
+  const avoid = (S.avoid || []).map((a) => {
+    const c = D.chars[a.name];
+    return c ? `<button class="bavoid" data-ch="${esc(c.name)}"><img src="${esc(sz(c.img, 64))}" loading="lazy" alt=""><span><b>${esc(short(c.name))}</b><small>${esc(a.why)}</small></span></button>` : "";
+  }).join("");
+  const links = Object.values(src).map((s) => `<u data-url="${esc(s.url)}">${esc(s.label)}</u>`).join(" ・ ");
+  list.innerHTML = `<div class="beg">
+    <div class="pseg bseg"><button data-bside="s" class="${begSide === "s" ? "on" : ""}">サバイバー</button><button data-bside="h" class="${begSide === "h" ? "on" : ""}">ハンター</button></div>
+    <p class="blead">${begSide === "s" ? "まずはここから。操作がシンプルで、ミスしても立て直しやすいサバイバー" : "まずはここから。操作がシンプルで、追いかける基本を覚えやすいハンター"}<br><small>●の数 = 操作の難しさ ・ タップで詳しい情報へ</small></p>
+    <div class="blist">${cards}</div>
+    <h4 class="grp"><span class="tn">最初は避けたいキャラ</span><small>慣れてから</small></h4>
+    <div class="bavoids">${avoid}</div>
+    <p class="bfoot">出典: ${links}（${esc(B.updated || "")} まとめ）</p></div>`;
 }
 
 const TIER_LABEL = { S: "環境トップ", A: "強力", B: "標準", C: "やや不利", D: "厳しい" };
@@ -874,6 +909,8 @@ $("#tiers").addEventListener("click", (e) => {
 $("#q").addEventListener("input", render);
 
 document.addEventListener("click", (e) => {
+  const bs = e.target.closest("[data-bside]");
+  if (bs) { begSide = bs.dataset.bside; render(); $("#list").scrollTop = 0; return; }
   const u = e.target.closest("[data-url]");
   if (u) return api() ? api().open_url(u.dataset.url) : window.open(u.dataset.url);
   const z = e.target.closest("[data-zoom]");
