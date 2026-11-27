@@ -645,3 +645,4 @@ details.more[open] { padding-bottom: 8px; }
 .texi small { display: block; font-size: 10px; color: var(--sub); line-height: 1.4; margin-top: 2px; }
 .webwrap.mini { margin: 0; border-radius: 10px; }
 .webwrap.mini .pt { display: none; }
+.web .pt.uns { fill: #ff9d6b; }

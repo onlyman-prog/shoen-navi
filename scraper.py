@@ -183,7 +183,7 @@ def attach_persona_reads(chars, cache):
         for b in c.get("builds", []):
             r = cache.get(b.get("tree") or "")
             if r and r.get("ok"):
-                b["web"] = {"pts": r["pts"], "low": r.get("low", False)}
+                b["web"] = {"pts": r["pts"], "low": r.get("low", False), "unsure": r.get("unsure", [])}
 
 
 def norm(name):

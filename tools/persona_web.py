@@ -25,6 +25,13 @@ CENTER = int(np.argmin(np.hypot(LAYOUT[:, 0], LAYOUT[:, 1])))
 END_IDX = [int(i) for i in np.argsort(-np.hypot(LAYOUT[:, 0], LAYOUT[:, 1]))[:4]]  # 4方向の末端 (大きいマス)
 
 
+WORK_UNIT = 398.0  # 中心〜端のマスまでを何ピクセルに拡大して読むか
+try:  # ラベル全体の見本 (振った数_最大_縮小率 → 64x32 の明るさ)
+    _LT = dict(np.load(DATA / "persona_labels.npz"))
+except Exception:
+    _LT = {}
+
+
 def load(path):
     return cv2.imdecode(np.fromfile(str(path), np.uint8), cv2.IMREAD_COLOR)
 
@@ -55,7 +62,26 @@ def register(im):
                 score = int((d < u * 0.04).sum())
                 if score > best[0]:
                     best = (score, (float(cx), float(cy), float(u)))
-    return best[1] if best[0] >= 15 else None
+    if best[0] < 15:
+        return None
+    # 仕上げ: 近くの円と対応づけて、位置と大きさを最小二乗で合わせ直す
+    cx, cy, u = best[1]
+    for _ in range(3):
+        proj = np.stack([cx + LAYOUT[:, 0] * u, cy + LAYOUT[:, 1] * u], 1)
+        d = np.hypot(proj[:, None, 0] - P[None, :, 0], proj[:, None, 1] - P[None, :, 1])
+        j = d.argmin(1)
+        ok = d[np.arange(len(LAYOUT)), j] < u * 0.05
+        if ok.sum() < 12:
+            break
+        X, Y = LAYOUT[ok], P[j[ok]]
+        # x_img = cx + X*u, y_img = cy + Y*u を同時に解く
+        A = np.zeros((2 * len(X), 3))
+        A[0::2, 0], A[0::2, 2] = 1, X[:, 0]
+        A[1::2, 1], A[1::2, 2] = 1, X[:, 1]
+        b = Y.reshape(-1)
+        sol, *_ = np.linalg.lstsq(A, b, rcond=None)
+        cx, cy, u = (float(v) for v in sol)
+    return (cx, cy, u)
 
 
 def _glyph(m, s):
@@ -100,16 +126,16 @@ def _contrast(c):
     return float(np.percentile(gg, 98) - np.median(gg)) if gg.size else 0.0
 
 
-def read(im, _lo=None):
+def _read_at(im, _lo=None):
     """[(node, points, max, active), ...] を返す。読めないマスは points=None。"""
     reg = register(im)
     if not reg:
         return None
     cx, cy, u = reg
     lowres = u < 250 if _lo is None else _lo
-    k = 398.0 / u  # 基準 (高さ1080の画像で unit=398) に合わせて拡大縮小
-    im = cv2.resize(im, None, fx=k, fy=k, interpolation=cv2.INTER_CUBIC if k > 1 else cv2.INTER_AREA)
-    cx, cy, u = cx * k, cy * k, 398.0
+    k = WORK_UNIT / u  # ラベルの数字を読みやすいよう、大きく拡大してから読む
+    im = cv2.resize(im, None, fx=k, fy=k, interpolation=cv2.INTER_LANCZOS4 if k > 1 else cv2.INTER_AREA)
+    cx, cy, u = cx * k, cy * k, WORK_UNIT
     hsv = cv2.cvtColor(im, cv2.COLOR_BGR2HSV)
     out = []
     p1 = {}  # 低解像度: 最大3のマスが「1」らしい度合い
@@ -195,7 +221,7 @@ def read(im, _lo=None):
     return out
 
 
-def _closure(out):
+def _closure(out, protect=frozenset()):
     """振ったマスの手前 (中心側) は必ず振ってある。つながっていないマスがあれば、
     「手前を振ったことにする」か「そのマスを外す」の、合計が BUDGET に近くなる方を選ぶ"""
     val = {n: (a or 0) for n, a, _, _ in out}
@@ -209,7 +235,7 @@ def _closure(out):
             tot = sum(val.values())
             p = PARENT[n]
             add = 1 if MAXV[p] == 1 else max(1, min(3, BUDGET - tot))
-            if abs(tot + add - BUDGET) <= abs(tot - val[n] - BUDGET):
+            if abs(tot + add - BUDGET) <= abs(tot - val[n] - BUDGET) or n in protect:
                 val[p] = add
             else:
                 val[n] = 0
@@ -227,13 +253,188 @@ def _closure(out):
         tot = sum(val.values())
         up = tot + MAXV[n] - val[n]  # 道中なので最大まで振ってある
         cut = tot - sum(val[k] for c in lit_kids for k in subtree(c))  # 先のマスは読み違い
-        if abs(up - BUDGET) <= abs(cut - BUDGET):
+        cut_nodes = [k for c in lit_kids for k in subtree(c)]
+        if abs(up - BUDGET) <= abs(cut - BUDGET) or any(k in protect for k in cut_nodes):
             val[n] = MAXV[n]
         else:
             for c in lit_kids:
                 for k in subtree(c):
                     val[k] = 0
     return [(n, (val[n] if val[n] or a is not None else None), b, act or val[n] > 0) for n, a, b, act in out]
+
+
+ZOOMS = (398.0, 800.0, 1200.0)
+LM_ON, LM_MARGIN = True, 0.1  # ラベル全体の見本合わせを使うか・自信の閾値
+
+
+def label_match(im, cx, cy, u, n):
+    """ラベル全体を見本と比べて「振った数」を返す (線が重なった画素は比べない)。(値, 2位との差)"""
+    if not _LT:
+        return None, 0.0
+    x, y = LAYOUT[n]
+    px, py = cx + x * u, cy + y * u
+    big = n in END_IDX
+    c = im[max(0, int(py + (0.075 if big else 0.06) * u)):int(py + (0.155 if big else 0.14) * u),
+           max(0, int(px - 0.08 * u)):int(px + 0.08 * u)]
+    if c.size == 0:
+        return None, 0.0
+    c = cv2.resize(c, (64, 32), interpolation=cv2.INTER_AREA if c.shape[1] > 64 else cv2.INTER_CUBIC)
+    hsv = cv2.cvtColor(c, cv2.COLOR_BGR2HSV)
+    line = ((hsv[:, :, 1] > 70) & (hsv[:, :, 2] > 110)).astype(np.uint8)
+    keep = cv2.dilate(line, np.ones((3, 3), np.uint8)) == 0
+    keep[:, 30:] = False  # 最初の数字がある左側だけで比べる (「/3」の部分は全員同じなので差が出ない)
+    g = hsv[:, :, 2].astype(np.float32)[keep]
+    if g.size < 120:
+        return None, 0.0
+    g = (g - g.mean()) / (g.std() + 1e-6)
+    best = {}
+    for k, tpl in _LT.items():
+        a, m, _ = k.split("_")
+        if int(m) != MAXV[n]:
+            continue
+        tt = tpl[keep]
+        tt = (tt - tt.mean()) / (tt.std() + 1e-6)
+        s = float((g * tt).mean())
+        best[int(a)] = max(best.get(int(a), -9), s)
+    if not best:
+        return None, 0.0
+    order = sorted(best.items(), key=lambda kv: -kv[1])
+    label_match.last = best
+    return order[0][0], (order[0][1] - order[1][1]) if len(order) > 1 else 1.0
+
+
+def _lit_by_color(im):
+    """マスの縁の明るさで「振ったか」を判定 (振ったマスは明るい青/オレンジ、振っていないマスは暗い)"""
+    reg = register(im)
+    if not reg:
+        return None
+    cx, cy, u = reg
+    hsv = cv2.cvtColor(im, cv2.COLOR_BGR2HSV)
+    H, W = im.shape[:2]
+    out = {}
+    for n, (x, y) in enumerate(LAYOUT):
+        px, py = cx + x * u, cy + y * u
+        r = 0.052 * u * (1.3 if n in END_IDX else 1)
+        y0, y1, x0, x1 = int(py - r), int(py + r), int(px - r), int(px + r)
+        if y0 < 0 or x0 < 0 or y1 > H or x1 > W:
+            out[n] = None  # 画面外 (判定しない)
+            continue
+        yy, xx = np.mgrid[y0:y1, x0:x1]
+        d = np.hypot(xx - px, yy - py)
+        ring = (d > 0.55 * r) & (d < 0.9 * r)
+        s = float(np.median(hsv[y0:y1, x0:x1, 1][ring]))
+        v = float(np.median(hsv[y0:y1, x0:x1, 2][ring]))
+        # 明るい灰色 (アイコンが見えるだけで振っていないマス) は彩度が低いので除く
+        out[n] = v if (s > 50 or v > 215) else min(v, 100.0)
+    # 画像ごとに「明るいマス」と「暗いマス」を2つに分ける (ランキング画面に重なって全体が暗い時も対応)
+    vals = sorted(v for k, v in out.items() if v is not None and MAXV[k])
+    if len(vals) < 10:
+        return None
+    if sum(1 for v in vals if v > 150) >= 8:  # ふつうの画面: 明るさ150で分かれる
+        return {k: (None if v is None else v > 150) for k, v in out.items()}
+    best, thr = -1, 155.0
+    for i in range(3, len(vals) - 3):
+        if not (8 <= len(vals) - i <= 26):  # 振ったマスは 1構成で 10〜24 個ほど
+            continue
+        gap = vals[i] - vals[i - 1]
+        if gap > best:
+            best, thr = gap, (vals[i] + vals[i - 1]) / 2
+    if best < 15:  # はっきり分かれない (切り替え中の画面など) ときは色を使わない
+        return None
+    return {k: (None if v is None else v > thr) for k, v in out.items()}
+
+
+def read(im, _lo=None):
+    """画像を何段階かに拡大して読み、マスごとに多数決 (同数なら 800 倍率の結果)。最後に構造ルールで整える"""
+    global WORK_UNIT
+    res = []
+    keep = WORK_UNIT
+    try:
+        for z in ZOOMS:
+            WORK_UNIT = z
+            r = _read_at(im, _lo)
+            if r is None:
+                return None
+            res.append(r)
+    finally:
+        WORK_UNIT = keep
+    lit = _lit_by_color(im)
+    reg = register(im)
+    protect = frozenset(k for k, v in (lit or {}).items() if v)
+
+    def fix(nodes, votes_of):
+        """色の判定とラベル全体の見本合わせで1マスずつ直し、つながりのルールで整える"""
+        out = []
+        for k, node in enumerate(nodes):
+            n, best = node[0], node[1]
+            votes = votes_of(k)
+            if lit is not None and MAXV[n] and lit.get(n) is not None:
+                if not lit[n]:
+                    best = 0  # 色が付いていないマスは振っていない
+                elif MAXV[n] == 1:
+                    best = 1
+                else:  # 最大3で振ってあるマス: ラベル全体の見本合わせ (線が重なっても読める)
+                    nz = [x for x in votes if x]
+                    unsure = len(set(votes)) > 1 or not best  # 拡大率ごとの読みが割れた/読めなかった時だけ
+                    v, margin = label_match(im, *reg, n) if (unsure and LM_ON) else (None, 0.0)
+                    if v and margin > LM_MARGIN:
+                        best = v
+                    elif not best:
+                        best = max(set(nz), key=nz.count) if nz else 3
+            out.append((n, best, node[2], bool(best)))
+        return _closure(out, protect)
+
+    def vote(k):
+        return [r[k][1] for r in res]
+
+    def majority(k):
+        vs = vote(k)
+        cnt = {}
+        for v in vs:
+            cnt[v] = cnt.get(v, 0) + 1
+        return max(cnt.items(), key=lambda x: (x[1], x[0] == res[1][k][1]))[0]
+
+    out = fix([(nd[0], majority(k), nd[2], nd[3]) for k, nd in enumerate(res[1])], vote)
+    if sum(a or 0 for _, a, _, _ in out) != BUDGET and reg:
+        out = _fit_leaves(im, reg, out, vote)
+    # 自信のないマス: 最大3の終点で途中まで (1/3・2/3) のもの、拡大率ごとの読みが割れたもの
+    val = {n: (a or 0) for n, a, _, _ in out}
+    read.unsure = sorted(n for k, (n, a, _, _) in enumerate(out)
+                         if a and MAXV[n] == 3 and not any(val.get(c) for c in CHILDREN.get(n, []))
+                         and ((a < 3 and reg and reg[2] < 300) or len({v for v in vote(k) if v}) > 1))
+    return out
+
+
+def _fit_leaves(im, reg, out, vote_of):
+    """合計が BUDGET からずれた時: 最大3で振ってある「枝の終点」のマスに 1/2/3 を当てはめ直し、
+    合計がちょうど BUDGET になる組み合わせの中で、ラベル全体の見本合わせ・各倍率の読みに最も合うものを選ぶ"""
+    import itertools
+    val = {n: (a or 0) for n, a, _, _ in out}
+    leaves = [n for n, v in val.items() if v and MAXV[n] == 3 and not any(val.get(c) for c in CHILDREN.get(n, []))]
+    if not leaves or len(leaves) > 7:
+        return out
+    fixed = sum(v for n, v in val.items() if n not in leaves)
+    scores = {}
+    for n in leaves:
+        label_match.last = {}
+        label_match(im, *reg, n)
+        s = dict(label_match.last or {})
+        k = [i for i, (m, *_r) in enumerate(out) if m == n][0]
+        for v in vote_of(k):
+            if v:
+                s[v] = s.get(v, 0) + 0.15  # 数字の読みとも合っているほど良い
+        scores[n] = s
+    best, best_s = None, -1e9
+    for combo in itertools.product((1, 2, 3), repeat=len(leaves)):
+        if fixed + sum(combo) != BUDGET:
+            continue
+        s = sum(scores[n].get(v, -1) for n, v in zip(leaves, combo))
+        if s > best_s:
+            best, best_s = combo, s
+    if best is None:
+        return out
+    newv = dict(zip(leaves, best))
+    return [(n, newv.get(n, a), b, act) for n, a, b, act in out]
 
 
 def _guess(guess, i):
@@ -286,8 +487,7 @@ def analyze_url(url):
     if not r:
         return {"ok": False}
     pts = {str(n): int(a) for n, a, b, act in r if a}
-    unk = [n for n, a, b, act in r if a is None and MAXV[n] > 0]
-    return {"ok": True, "pts": pts, "low": reg[2] < 300, "unknown": unk, "total": sum(pts.values())}
+    return {"ok": True, "pts": pts, "low": reg[2] < 300, "unsure": [str(n) for n in getattr(read, "unsure", [])], "total": sum(pts.values())}
 
 
 def update_cache(chars, path=DATA / "persona_reads.json", log=print):
@@ -378,3 +578,53 @@ def merge_records(recs):
                 seen[g["name"]] = seen.get(g["name"], 0) + 1
                 g["name"] = f"{g['name']}({seen[g['name']]})"
     return out
+
+
+def first_digit_by_ref(im, cx, cy, u, n, debug=False):
+    """最大3のマスのラベル「a/3」で、右の「3」を物差しにして左の数字 a を判定する (8倍に拡大して比べる)。
+    戻り値: (a, 自信 0〜1)。左の数字が右の3よりずっと細い→1、3とほぼ同じ形→3、それ以外→2"""
+    x, y = LAYOUT[n]
+    px, py = cx + x * u, cy + y * u
+    big = n in END_IDX
+    c = im[max(0, int(py + (0.075 if big else 0.06) * u)):int(py + (0.155 if big else 0.14) * u),
+           max(0, int(px - 0.085 * u)):int(px + 0.085 * u)]
+    if c.size == 0 or c.shape[0] < 4:
+        return None, 0.0
+    k = max(1.0, 160.0 / c.shape[1])
+    c = cv2.resize(c, None, fx=k, fy=k, interpolation=cv2.INTER_LANCZOS4)
+    hsv = cv2.cvtColor(c, cv2.COLOR_BGR2HSV)
+    v = hsv[:, :, 2].astype(np.float32)
+    line = (hsv[:, :, 1] > 70) & (hsv[:, :, 2] > 110)
+    bg = np.median(v[~line]) if (~line).any() else np.median(v)
+    ink = (v > bg + 0.45 * (np.percentile(v[~line], 99) - bg)) & ~line if (~line).any() else v > bg + 40
+    cols = ink.sum(0)
+    xs = np.where(cols > 0)[0]
+    if len(xs) < 6:
+        return None, 0.0
+    x0, x1 = xs[0], xs[-1]
+    W = x1 - x0 + 1
+    # 左の数字 = 文字列の左 35%、右の数字 = 右 35%
+    lw, rw = int(W * 0.36), int(W * 0.36)
+    L = ink[:, x0:x0 + lw]
+    R = ink[:, x1 - rw + 1:x1 + 1]
+
+    def box(m):
+        ys, xs2 = np.where(m)
+        if len(xs2) == 0:
+            return None
+        return m[ys.min():ys.max() + 1, xs2.min():xs2.max() + 1]
+    bl, br = box(L), box(R)
+    if bl is None or br is None or br.shape[1] < 3:
+        return None, 0.0
+    ratio = bl.shape[1] / br.shape[1]
+    if ratio < 0.6:
+        return 1, min(1.0, (0.6 - ratio) / 0.2 + 0.5)
+    a = cv2.resize(bl.astype(np.float32), (12, 18), interpolation=cv2.INTER_AREA).ravel()
+    b = cv2.resize(br.astype(np.float32), (12, 18), interpolation=cv2.INTER_AREA).ravel()
+    a, b = a - a.mean(), b - b.mean()
+    sim = float(a @ b / (np.linalg.norm(a) * np.linalg.norm(b) + 1e-6))
+    if debug:
+        print("ratio", round(ratio, 2), "sim", round(sim, 2))
+    if sim > 0.75:
+        return 3, min(1.0, (sim - 0.75) / 0.15 + 0.5)
+    return 2, min(1.0, (0.75 - sim) / 0.15 + 0.5)

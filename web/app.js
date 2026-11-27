@@ -973,7 +973,7 @@ const DIRS = [["上", 0, -1], ["右", 1, 0], ["下", 0, 1], ["左", -1, 0]];
 function webHTML(b, side, compact) {
   const L = D.personaLayout, w = b.web;
   if (!L || !w || !w.pts) return "";
-  const names = L.names[side] || {}, icons = L.icons[side] || {}, pts = w.pts;
+  const names = L.names[side] || {}, icons = L.icons[side] || {}, pts = w.pts, uns = new Set(w.unsure || []);
   const P = L.nodes.map(([x, y]) => [x * 100, y * 100]); // 小さい単位だと文字の設定が効きすぎるので 100 倍
   const R = (i) => (L.max[i] === 0 ? 7.5 : [0, 1, 2, 3].includes(i) ? 6.8 : 5.2);
   const on = (i) => (pts[i] || 0) > 0;
@@ -983,22 +983,22 @@ function webHTML(b, side, compact) {
     if (i === L.center) return `<circle cx="${x}" cy="${y}" r="${r}" class="core"/>`;
     if (!p) return `<circle cx="${x}" cy="${y}" r="${r * 0.62}" class="off"><title>${esc(n)} 0/${mx}</title></circle>`;
     const ic = icons[n];
-    return `<g class="nd"><title>${esc(n)} ${p}/${mx}</title><circle cx="${x}" cy="${y}" r="${r}" class="lit"/>
+    return `<g class="nd"><title>${esc(n)} ${p}/${mx}${uns.has(String(i)) ? "（1〜3のどれか読み取りが不確か。元の画像で確認してください）" : ""}</title><circle cx="${x}" cy="${y}" r="${r}" class="lit"/>
       ${ic ? `<image href="${esc(sz(ic, 64))}" x="${x - r}" y="${y - r}" width="${2 * r}" height="${2 * r}" clip-path="circle(50%)"/>` : ""}
-      <text x="${x}" y="${y + r + 5.6}" class="pt${p < mx ? " part" : ""}">${p}/${mx}</text></g>`;
+      <text x="${x}" y="${y + r + 5.6}" class="pt${p < mx ? " part" : ""}${uns.has(String(i)) ? " uns" : ""}">${p}/${mx}${uns.has(String(i)) ? "?" : ""}</text></g>`;
   }).join("");
   // 方向ごとの一覧 (中心からの向きで上下左右に分ける)
   const groups = DIRS.map(([lab, dx, dy]) => {
     const items = Object.keys(pts).map(Number).filter((i) => {
       const [x, y] = P[i]; return Math.abs(x) + Math.abs(y) > 1 && (dx ? Math.sign(x) === dx && Math.abs(x) >= Math.abs(y) : Math.sign(y) === dy && Math.abs(y) > Math.abs(x));
     }).sort((a, b) => Math.hypot(...P[a]) - Math.hypot(...P[b]));
-    return items.length ? `<div class="wdir"><b>${lab}</b>${items.map((i) => `<span class="${pts[i] < L.max[i] ? "part" : ""}">${esc(names[i] || "?")}<i>${pts[i]}/${L.max[i]}</i></span>`).join("")}</div>` : "";
+    return items.length ? `<div class="wdir"><b>${lab}</b>${items.map((i) => `<span class="${pts[i] < L.max[i] ? "part" : ""}">${esc(names[i] || "?")}<i>${pts[i]}/${L.max[i]}${uns.has(String(i)) ? "?" : ""}</i></span>`).join("")}</div>` : "";
   }).join("");
   const total = Object.values(pts).reduce((a, v) => a + v, 0);
   if (compact) return `<div class="webwrap ${side} mini"><svg class="web" viewBox="-112 -112 224 224" role="img" aria-label="人格の網">${lines}${nodes}</svg></div>`;
   return `<div class="webwrap ${side}"><svg class="web" viewBox="-112 -112 224 224" role="img" aria-label="人格の網">${lines}${nodes}</svg></div>
     <div class="wlist">${groups}</div>
-    <p class="none wnote">合計 ${total}ポイント・ゲーム画面の画像から自動で読み取り${total !== 26 ? "（合計が26にならないため、一部のマスを読み違えている可能性があります）" : w.low ? "（画像が小さいため推定）" : ""}。マスを長押し/ホバーで名前。</p>`;
+    <p class="none wnote">合計 ${total}ポイント・ゲーム画面の画像から自動で読み取り${total !== 26 ? "（合計が26にならないため、一部のマスを読み違えている可能性があります）" : ""}${uns.size ? "。「?」のマスは数字が小さく 1/2/3 のどれか確実ではありません（元の画像で確認できます）" : ""}。マスを長押し/ホバーで名前。</p>`;
 }
 /* 神ゲー以外の構成: 動画から読み取ったもの・自分でゲーム画面から記録したもの */
 function extraBuilds(c) {

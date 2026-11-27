@@ -229,7 +229,7 @@ class Api:
         shot_dir.mkdir(parents=True, exist_ok=True)
         vision.imwrite(shot_dir / f"{rid}.png", img)
         rec = {"id": rid, "char": char, "side": side, "date": time.strftime("%Y-%m-%d"), "images": [f"{rid}.png"],
-               "web": {"pts": pts, "low": bool(reg and reg[2] < 300)}}
+               "web": {"pts": pts, "low": bool(reg and reg[2] < 300), "unsure": [str(n) for n in getattr(persona_web.read, "unsure", [])]}}
         path = ROOT / "data" / "my_personas.json"
         recs = persona_web.merge_records(read_json(path, []) + [rec])
         write_json(path, recs)
