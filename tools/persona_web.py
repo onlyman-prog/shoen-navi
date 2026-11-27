@@ -14,6 +14,9 @@ _L = json.load(open(DATA / "persona_layout.json", encoding="utf-8"))
 LAYOUT = np.array(_L["nodes"], np.float32)
 MAXV = _L["max"]  # マスごとの最大ポイント (1 or 3、中心は0)
 PARENT = {a: b for a, b in _L.get("edges", [])}  # 中心に向かって1つ手前のマス
+CHILDREN = {}
+for _a, _b in _L.get("edges", []):
+    CHILDREN.setdefault(_b, []).append(_a)
 _D = json.load(open(DATA / "persona_digits.json", encoding="utf-8"))
 DIG = {k: np.array(t, np.float32) for k, t in zip(_D["keys"], _D["templates"])}
 KX, KY = np.array(_D["knnX"], np.float32), np.array(_D["knnY"])
@@ -178,7 +181,10 @@ def read(im, _lo=None):
     out = _closure(out)
     if lowres and p1:
         out = _fit_total(out, p1)
-    if guess:  # 仮置きしたマスは合計が BUDGET になるように決める (1〜3)
+    if guess:  # 仮置きしたマスは合計が BUDGET になるように決める (1〜3)。道中のマスは最大で確定
+        lit = {n for n, a, _, _ in out if a}
+        guess = [g for g in guess if not any(c in lit for c in CHILDREN.get(g, []))]
+    if guess:
         tot = sum(a or 0 for _, a, _, _ in out)
         need = BUDGET - (tot - 3 * len(guess))
         if len(guess) <= need <= 3 * len(guess):
@@ -207,6 +213,26 @@ def _closure(out):
                 val[p] = add
             else:
                 val[n] = 0
+    # 道中のマス (先に振ったマスがある) は最大まで振らないと先へ進めない
+    def subtree(n):  # n とその先にある振ったマス
+        s = [n]
+        for c in CHILDREN.get(n, []):
+            if val.get(c):
+                s += subtree(c)
+        return s
+    for n in sorted(val, key=lambda k: -float(np.hypot(*LAYOUT[k]))):  # 外側から
+        lit_kids = [c for c in CHILDREN.get(n, []) if val.get(c)]
+        if not val[n] or not lit_kids or val[n] >= MAXV[n]:
+            continue
+        tot = sum(val.values())
+        up = tot + MAXV[n] - val[n]  # 道中なので最大まで振ってある
+        cut = tot - sum(val[k] for c in lit_kids for k in subtree(c))  # 先のマスは読み違い
+        if abs(up - BUDGET) <= abs(cut - BUDGET):
+            val[n] = MAXV[n]
+        else:
+            for c in lit_kids:
+                for k in subtree(c):
+                    val[k] = 0
     return [(n, (val[n] if val[n] or a is not None else None), b, act or val[n] > 0) for n, a, b, act in out]
 
 
@@ -225,6 +251,8 @@ def _fit_total(out, p1):
     if diff == 0 or abs(diff) > 6:
         return out
     out = [list(x) for x in out]
+    lit = {x[0] for x in out if x[1]}
+    p1 = {n: v for n, v in p1.items() if not any(c in lit for c in CHILDREN.get(n, []))}  # 終点だけ
     if diff > 0:  # 多すぎ: 3 と読んだうち「1」らしいものを 1 に (奇数なら最後の1つは 2 に)
         cand = sorted([x for x in out if x[0] in p1 and x[1] == 3], key=lambda x: -p1[x[0]])
         for k, x in enumerate(cand[:(diff + 1) // 2]):
