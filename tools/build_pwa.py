@@ -38,6 +38,7 @@ def main():
     data["personaLayout"] = json.loads((ROOT / "data" / "persona_layout.json").read_text(encoding="utf-8"))
     data["personaVideos"] = json.loads((ROOT / "data" / "persona_videos.json").read_text(encoding="utf-8"))
     data["counter"] = json.loads((ROOT / "data" / "counter.json").read_text(encoding="utf-8"))
+    data["personaEffects"] = json.loads((ROOT / "data" / "persona_effects.json").read_text(encoding="utf-8"))
     (OUT / "data.json").write_text(json.dumps(data, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
     VER = hashlib.md5((WEB / "app.js").read_bytes() + (WEB / "style.css").read_bytes()).hexdigest()[:8]
     for f in ("app.js", "style.css", "pwa.js", "sw.js"):

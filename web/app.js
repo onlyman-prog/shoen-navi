@@ -239,6 +239,7 @@ const CT_ICON = {
   gate: '<path d="M4 20V9a8 8 0 0 1 16 0v11"/><path d="M8 20v-9M12 20V7M16 20v-9"/>',
   half: '<circle cx="12" cy="12" r="7"/><path d="M12 5a7 7 0 0 1 0 14z" fill="currentColor"/>',
   chair: '<path d="M7 3v10h10V3M7 13l-2 8M17 13l2 8M5 17h14"/>',
+  eye: '<path d="M2 12s3.6-6 10-6 10 6 10 6-3.6 6-10 6S2 12 2 12z"/><circle cx="12" cy="12" r="2.6"/>',
   run: '<circle cx="15" cy="4.5" r="2"/><path d="M8 21l3-6 3 2v4M10 9l4-2 3 4 3 1M6 12l3-3"/>',
 };
 const ctIcon = (k) => `<svg class="cti" viewBox="0 0 24 24">${CT_ICON[k]}</svg>`;
@@ -264,7 +265,7 @@ function renderCounter() {
         <span class="cpart">${ctIcon("hit")}<b>通常攻撃</b><em>1</em></span>
         <span class="cpart">${ctIcon("half")}<b>スキル（多く）</b><em>0.5</em></span>
         <span class="cpart bad">${ctIcon("terror")}<b>恐怖の一撃</b><em>＋1</em><small>板窓の乗り越え・救助・治療などの最中に殴られる</small></span>
-        <span class="cpart bad">${ctIcon("gate")}<b>引き留める</b><em>＋1</em><small>通電後しばらく（ハンターの人格）</small></span>
+        <span class="cpart bad">${ctIcon("gate")}<b>引き留める</b><em>＋1</em><small>通電してから120秒間（ハンターの人格）</small></span>
       </div>
       ${eq([["通常", "1"], ["恐怖", "＋1", "bad"]], 2, "無傷でも即ダウン")}
       ${eq([["通常", "1"], ["引き留める", "＋1", "bad"]], 2, "通電後は1発でダウン")}
@@ -298,9 +299,11 @@ function renderCounter() {
   const shown = hs.filter((c) => !ctrTag || (C.h[c.name].tags || []).includes(ctrTag));
   const cards = shown.map((c) => {
     const x = C.h[c.name];
-    return `<div class="ccard">
+    const open = ctrOpen.has(c.name);
+    return `<div class="ccard${open ? " open" : ""}" data-cc="${esc(c.name)}">
       <button class="chd" data-ch="${esc(c.name)}"><img src="${esc(sz(c.img, 96))}" alt="" loading="lazy"><span><b>${esc(short(c.name))}<i class="tier ${c.tier}">${c.tier}</i></b><small>${esc(x.t)}</small></span></button>
       ${ctrBody(x, tags)}
+      ${ctrMore(x) ? `<button class="cmore" data-cmore="${esc(c.name)}">${open ? "とじる ▲" : "くわしく（チェイス・救助・立ち回り） ▼"}</button>${open ? ctrMore(x) : ""}` : ""}
     </div>`;
   }).join("");
   list.innerHTML = `<div class="beg ctr">
@@ -309,20 +312,76 @@ function renderCounter() {
     <h4 class="grp"><span class="tn">ハンター別の対策</span><small>${shown.length}体</small></h4>
     <div class="ctagbar">${Object.entries(tags).map(([k, v]) => `<button data-ctag="${k}" class="ctag t-${k} ${ctrTag === k ? "on" : ""}">${esc(v)}</button>`).join("")}</div>
     <div class="clist">${cards}</div>
-    <p class="bfoot">出典: <u data-url="${esc(C.src.url)}">${esc(C.src.label)}</u> を短くまとめたもの（${esc(C.updated)}）・カードの名前をタップで詳細へ</p></div>`;
+    <p class="bfoot">5ch攻略Wikiの対策ページと、YouTubeの対策解説動画（各カードの「くわしく」に動画名と日付）を短くまとめたもの（${esc(C.updated)}）。古い動画の内容は今の性能と違う場合があります・カードの名前をタップで詳細へ</p></div>`;
 }
 function ctrBody(x, tags) {
   const b = [...(x.tags || []).map((t) => `<i class="ctag t-${t}">${esc((tags || {})[t] || t)}</i>`), ...(x.dmg || []).map((d) => `<i class="cdmg">${esc(d[0])} <b>${esc(d[1])}</b></i>`)];
   return `${b.length ? `<div class="cbadges">${b.join("")}</div>` : ""}
     <ol class="cl">${x.c.map((s) => `<li>${esc(s)}</li>`).join("")}</ol>
+    ${x.see ? `<div class="csee">${ctIcon("eye")}<span><em>見分け方</em>${esc(x.see)}</span></div>` : ""}
     ${x.r ? `<div class="cr">${ctIcon("chair")}<span>${esc(x.r)}</span></div>` : ""}`;
+}
+const CTR_SEC = [["chase", "チェイス", "run"], ["rescue", "救助", "chair"], ["game", "解読・立ち回り", "gate"]];
+function ctrMore(x) {
+  const secs = CTR_SEC.filter(([k]) => (x[k] || []).length);
+  if (!secs.length) return "";
+  const S = (D.counter && D.counter.sources) || {};
+  return `<div class="cmorebody">${secs.map(([k, l, ic]) => `<div class="csec"><div class="csh">${ctIcon(ic)}${l}</div><ul>${x[k].map((s) => `<li>${esc(s)}</li>`).join("")}</ul></div>`).join("")}
+    ${(x.src || []).length ? `<div class="csrc">${x.src.map((k) => S[k] ? `<small data-url="${esc(S[k].url)}" title="${esc(S[k].label)}">${S[k].url.includes("youtube") ? "▶ " : ""}${esc(S[k].label)}<b>${esc(S[k].date)}</b></small>` : "").join("")}</div>` : ""}</div>`;
+}
+let ctrOpen = new Set();
+// ハンター詳細などから対策タブのそのキャラへ飛ぶ
+function goCounter(name) {
+  ctrTag = "";
+  ctrOpen.add(name);
+  document.querySelector('[data-tab="ctr"]').click();
+  const el = [...document.querySelectorAll("[data-cc]")].find((e) => e.dataset.cc === name);
+  if (!el) return;
+  el.scrollIntoView({ block: "start" });
+  el.classList.add("flash");
+  setTimeout(() => el.classList.remove("flash"), 1600);
 }
 // キャラ詳細 (ハンター) に出す短い対策
 function counterSec(c) {
   const x = D.counter && D.counter.h[c.name];
   if (!x) return "";
-  return `<div class="sec"><div class="lbl">サバイバー側の対策</div><div class="ccard flat"><p class="ct">${esc(x.t)}</p>${ctrBody(x, D.counter.tags)}</div></div>`;
+  return `<div class="sec"><div class="lbl">サバイバー側の対策<button class="mini goctr" data-goctr="${esc(c.name)}">対策をくわしく見る →</button></div><div class="ccard flat"><p class="ct">${esc(x.t)}</p>${ctrBody(x, D.counter.tags)}</div></div>`;
 }
+
+/* 人格マスのツールチップ (効果を Lv1/2/3 で) */
+function ptipHTML(key) {
+  const [side, name, p, mx] = key.split("|");
+  const E = D.personaEffects && D.personaEffects[side] && D.personaEffects[side][name];
+  const cur = +p, max = +mx || 1;
+  let body;
+  if (!E) body = '<p class="ptn">効果の情報がありません</p>';
+  else if (max <= 1 || E.lv.length <= 1) body = `<p class="ptl on1">${esc(E.lv[0])}</p>`;
+  else body = Array.from({ length: max }, (_, k) => `<p class="ptl${k + 1 === cur ? " cur" : ""}"><b>Lv${k + 1}</b>${esc(E.lv[Math.min(k, E.lv.length - 1)])}</p>`).join("");
+  return `<div class="pth"><b>${esc(name)}</b><span>${cur ? `${cur}/${max} 振り` : `未振り（最大${max}）`}</span></div>${body}`;
+}
+function ptipShow(el, x, y) {
+  let t = $("#ptip");
+  if (!t) { t = document.createElement("div"); t.id = "ptip"; document.body.appendChild(t); }
+  t.innerHTML = ptipHTML(el.getAttribute("data-pk"));
+  t.hidden = false;
+  const w = t.offsetWidth, h = t.offsetHeight, W = innerWidth, H = innerHeight;
+  t.style.left = Math.max(8, Math.min(W - w - 8, x + 14)) + "px";
+  t.style.top = (y + 16 + h > H - 8 ? Math.max(8, y - h - 12) : y + 16) + "px";
+}
+const ptipHide = () => { const t = $("#ptip"); if (t) t.hidden = true; };
+document.addEventListener("mouseover", (e) => {
+  const el = e.target.closest && e.target.closest("[data-pk]");
+  if (el) ptipShow(el, e.clientX, e.clientY); else ptipHide();
+});
+document.addEventListener("mousemove", (e) => {
+  const t = $("#ptip");
+  if (t && !t.hidden && e.target.closest && e.target.closest("[data-pk]")) ptipShow(e.target.closest("[data-pk]"), e.clientX, e.clientY);
+});
+document.addEventListener("touchstart", (e) => {
+  const el = e.target.closest && e.target.closest("[data-pk]");
+  if (el) { const p = e.touches[0]; ptipShow(el, p.clientX, p.clientY); } else ptipHide();
+}, { passive: true });
+document.addEventListener("scroll", ptipHide, true);
 
 const TIER_LABEL = { S: "環境トップ", A: "強力", B: "標準", C: "やや不利", D: "厳しい" };
 
@@ -1012,7 +1071,8 @@ function showDetail(key, replace) {
   $("#detail").style.setProperty("--hero", `url("${c.img.startsWith("gi/") ? c.img : sz(c.img, 256)}")`);
   title.innerHTML = `<img src="${esc(sz(c.img, 128))}" alt=""><div>
     <div class="nm">${esc(c.name)} <b class="tier ${c.tier}">${c.tier}</b></div>
-    <span class="src" data-url="${esc(c.url)}">神ゲー攻略</span> <span class="src" data-url="${esc(c.wiki || "")}">5chWiki</span></div>`;
+    <span class="src" data-url="${esc(c.url)}">神ゲー攻略</span> <span class="src" data-url="${esc(c.wiki || "")}">5chWiki</span>
+    ${!isS && D.counter && D.counter.h[c.name] ? `<button class="goctr top" data-goctr="${esc(c.name)}"><svg viewBox="0 0 24 24"><path d="M12 3l7 3v5c0 4.6-3 8.2-7 10-4-1.8-7-5.4-7-10V6z"/><path d="M9 12l2 2 4-4"/></svg>対策を見る</button>` : ""}</div>`;
 
   const builds = [...(c.builds || []), ...extraBuilds(c)];
   const b = builds[0];
@@ -1091,9 +1151,10 @@ function webHTML(b, side, compact) {
   const nodes = P.map(([x, y], i) => {
     const r = R(i), n = names[i] || "", p = pts[i] || 0, mx = L.max[i];
     if (i === L.center) return `<circle cx="${x}" cy="${y}" r="${r}" class="core"/>`;
-    if (!p) return `<circle cx="${x}" cy="${y}" r="${r * 0.62}" class="off"><title>${esc(n)} 0/${mx}</title></circle>`;
+    const pk = `data-pk="${side}|${esc(n)}|${p}|${mx}"`;
+    if (!p) return `<circle cx="${x}" cy="${y}" r="${r * 0.62}" class="off" ${pk}/><circle cx="${x}" cy="${y}" r="${r}" class="hit" ${pk}/>`;
     const ic = icons[n];
-    return `<g class="nd"><title>${esc(n)} ${p}/${mx}${uns.has(String(i)) ? "（1〜3のどれか読み取りが不確か。元の画像で確認してください）" : ""}</title><circle cx="${x}" cy="${y}" r="${r}" class="lit"/>
+    return `<g class="nd" ${pk}><circle cx="${x}" cy="${y}" r="${r}" class="lit"/>
       ${ic ? `<image href="${esc(sz(ic, 64))}" x="${x - r}" y="${y - r}" width="${2 * r}" height="${2 * r}" clip-path="circle(50%)"/>` : ""}
       <text x="${x}" y="${y + r + 5.6}" class="pt${p < mx ? " part" : ""}${uns.has(String(i)) ? " uns" : ""}">${p}/${mx}${uns.has(String(i)) ? "?" : ""}</text></g>`;
   }).join("");
@@ -1102,13 +1163,13 @@ function webHTML(b, side, compact) {
     const items = Object.keys(pts).map(Number).filter((i) => {
       const [x, y] = P[i]; return Math.abs(x) + Math.abs(y) > 1 && (dx ? Math.sign(x) === dx && Math.abs(x) >= Math.abs(y) : Math.sign(y) === dy && Math.abs(y) > Math.abs(x));
     }).sort((a, b) => Math.hypot(...P[a]) - Math.hypot(...P[b]));
-    return items.length ? `<div class="wdir"><b>${lab}</b>${items.map((i) => `<span class="${pts[i] < L.max[i] ? "part" : ""}">${esc(names[i] || "?")}<i>${pts[i]}/${L.max[i]}${uns.has(String(i)) ? "?" : ""}</i></span>`).join("")}</div>` : "";
+    return items.length ? `<div class="wdir"><b>${lab}</b>${items.map((i) => `<span class="${pts[i] < L.max[i] ? "part" : ""}" data-pk="${side}|${esc(names[i] || "")}|${pts[i]}|${L.max[i]}">${esc(names[i] || "?")}<i>${pts[i]}/${L.max[i]}${uns.has(String(i)) ? "?" : ""}</i></span>`).join("")}</div>` : "";
   }).join("");
   const total = Object.values(pts).reduce((a, v) => a + v, 0);
   if (compact) return `<div class="webwrap ${side} mini"><svg class="web" viewBox="-112 -112 224 224" role="img" aria-label="人格の網">${lines}${nodes}</svg></div>`;
   return `<div class="webwrap ${side}"><svg class="web" viewBox="-112 -112 224 224" role="img" aria-label="人格の網">${lines}${nodes}</svg></div>
     <div class="wlist">${groups}</div>
-    <p class="none wnote">合計 ${total}ポイント・ゲーム画面の画像から自動で読み取り${total !== 26 ? "（合計が26にならないため、一部のマスを読み違えている可能性があります）" : ""}${uns.size ? "。「?」のマスは数字が小さく 1/2/3 のどれか確実ではありません（元の画像で確認できます）" : ""}。マスを長押し/ホバーで名前。</p>`;
+    <p class="none wnote">合計 ${total}ポイント・ゲーム画面の画像から自動で読み取り${total !== 26 ? "（合計が26にならないため、一部のマスを読み違えている可能性があります）" : ""}${uns.size ? "。「?」のマスは数字が小さく 1/2/3 のどれか確実ではありません（元の画像で確認できます）" : ""}。マスにカーソル（スマホはタップ）で人格の効果をLv別に表示。</p>`;
 }
 /* 神ゲー以外の構成: 動画から読み取ったもの・自分でゲーム画面から記録したもの */
 function extraBuilds(c) {
@@ -1182,6 +1243,10 @@ $("#q").addEventListener("input", render);
 document.addEventListener("click", (e) => {
   const bs = e.target.closest("[data-bside]");
   if (bs) { begSide = bs.dataset.bside; render(); $("#list").scrollTop = 0; return; }
+  const gc = e.target.closest("[data-goctr]");
+  if (gc) return goCounter(gc.dataset.goctr);
+  const cm = e.target.closest("[data-cmore]");
+  if (cm) { const n = cm.dataset.cmore; ctrOpen.has(n) ? ctrOpen.delete(n) : ctrOpen.add(n); const y = $("#list").scrollTop; render(); $("#list").scrollTop = y; return; }
   const ct = e.target.closest("[data-ctag]");
   if (ct) { const k = ct.dataset.ctag; ctrTag = ctrTag === k ? "" : k; return render(); }
   const u = e.target.closest("[data-url]");
