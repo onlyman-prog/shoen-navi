@@ -757,3 +757,16 @@ button.ctag.on { color: #1a1408; }
 .web .hit { fill: transparent; stroke: none; }
 .web [data-pk] { cursor: help; }
 .wdir [data-pk] { cursor: help; }
+/* 対策タブ: キャラ選択 */
+.cpick { display: flex; gap: 6px; overflow-x: auto; padding: 4px 2px 8px; margin: 0 0 6px; scrollbar-width: thin; scrollbar-color: #ffffff30 transparent; }
+.cpick button { flex: 0 0 auto; width: 58px; display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 4px 2px; border-radius: 10px; border: 1px solid transparent; background: #ffffff08; color: inherit; cursor: pointer; }
+.cpick button img, .cpick .all { width: 42px; height: 42px; border-radius: 50%; object-fit: cover; border: 2px solid #ffffff22; }
+.cpick .all { display: grid; place-items: center; font-weight: 700; background: #ffffff10; }
+.cpick small { font-size: 10px; line-height: 1.2; text-align: center; max-width: 56px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cpick button.on { border-color: var(--gold1); background: #ffffff14; }
+.cpick button.on img, .cpick button.on .all { border-color: var(--gold1); }
+.clist.one { grid-template-columns: 1fr; }
+.cpick::-webkit-scrollbar { height: 6px; }
+.cpick::-webkit-scrollbar-track { background: transparent; }
+.cpick::-webkit-scrollbar-thumb { background: #ffffff26; border-radius: 3px; }
+@media (min-width: 700px) { .cpick { flex-wrap: wrap; overflow: visible; } }

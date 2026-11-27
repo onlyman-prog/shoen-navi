@@ -243,7 +243,7 @@ const CT_ICON = {
   run: '<circle cx="15" cy="4.5" r="2"/><path d="M8 21l3-6 3 2v4M10 9l4-2 3 4 3 1M6 12l3-3"/>',
 };
 const ctIcon = (k) => `<svg class="cti" viewBox="0 0 24 24">${CT_ICON[k]}</svg>`;
-let ctrTag = "";
+let ctrTag = "", ctrView = "b", ctrPick = "";
 function renderCounter() {
   const C = D.counter, list = $("#list");
   if (!C) return (list.innerHTML = '<p class="none">対策データがありません</p>');
@@ -296,23 +296,34 @@ function renderCounter() {
     </div>`;
   const tags = C.tags || {};
   const hs = chars("h").filter((c) => C.h[c.name]).sort((a, b) => RANK[a.tier] - RANK[b.tier]);
-  const shown = hs.filter((c) => !ctrTag || (C.h[c.name].tags || []).includes(ctrTag));
+  const seg = `<div class="pseg bseg"><button data-cview="b" class="${ctrView === "b" ? "on" : ""}">基本</button><button data-cview="h" class="${ctrView === "h" ? "on" : ""}">キャラ別</button></div>`;
+  const foot = `<p class="bfoot">5ch攻略Wikiの対策ページと、YouTubeの対策解説動画（各カードの「くわしく」に動画名と日付）を短くまとめたもの（${esc(C.updated)}）。古い動画の内容は今の性能と違う場合があります</p>`;
+  if (ctrView === "b") {
+    list.innerHTML = `<div class="beg ctr">${seg}<h4 class="grp"><span class="tn">ダメージの基本</span></h4><div class="cgrid">${basics}</div>${foot}</div>`;
+    return;
+  }
+  const q = ($("#q").value || "").trim();
+  const pickable = hs.filter((c) => !ctrTag || (C.h[c.name].tags || []).includes(ctrTag));
+  const shown = (ctrPick ? hs.filter((c) => c.name === ctrPick) : pickable).filter((c) => !q || c.name.includes(q));
+  const pick = `<div class="cpick">
+      <button data-cpick="" class="${ctrPick ? "" : "on"}"><span class="all">全</span><small>全員</small></button>
+      ${pickable.map((c) => `<button data-cpick="${esc(c.name)}" class="${ctrPick === c.name ? "on" : ""}" title="${esc(c.name)}"><img src="${esc(sz(c.img, 96))}" alt="" loading="lazy"><small>${esc(short(c.name))}</small></button>`).join("")}
+    </div>`;
   const cards = shown.map((c) => {
     const x = C.h[c.name];
-    const open = ctrOpen.has(c.name);
+    const open = ctrPick === c.name || ctrOpen.has(c.name);
     return `<div class="ccard${open ? " open" : ""}" data-cc="${esc(c.name)}">
       <button class="chd" data-ch="${esc(c.name)}"><img src="${esc(sz(c.img, 96))}" alt="" loading="lazy"><span><b>${esc(short(c.name))}<i class="tier ${c.tier}">${c.tier}</i></b><small>${esc(x.t)}</small></span></button>
       ${ctrBody(x, tags)}
-      ${ctrMore(x) ? `<button class="cmore" data-cmore="${esc(c.name)}">${open ? "とじる ▲" : "くわしく（チェイス・救助・立ち回り） ▼"}</button>${open ? ctrMore(x) : ""}` : ""}
+      ${ctrMore(x) ? (ctrPick === c.name ? ctrMore(x) : `<button class="cmore" data-cmore="${esc(c.name)}">${open ? "とじる ▲" : "くわしく（チェイス・救助・立ち回り） ▼"}</button>${open ? ctrMore(x) : ""}`) : ""}
     </div>`;
   }).join("");
-  list.innerHTML = `<div class="beg ctr">
-    <h4 class="grp"><span class="tn">ダメージの基本</span></h4>
-    <div class="cgrid">${basics}</div>
-    <h4 class="grp"><span class="tn">ハンター別の対策</span><small>${shown.length}体</small></h4>
+  list.innerHTML = `<div class="beg ctr">${seg}
     <div class="ctagbar">${Object.entries(tags).map(([k, v]) => `<button data-ctag="${k}" class="ctag t-${k} ${ctrTag === k ? "on" : ""}">${esc(v)}</button>`).join("")}</div>
-    <div class="clist">${cards}</div>
-    <p class="bfoot">5ch攻略Wikiの対策ページと、YouTubeの対策解説動画（各カードの「くわしく」に動画名と日付）を短くまとめたもの（${esc(C.updated)}）。古い動画の内容は今の性能と違う場合があります・カードの名前をタップで詳細へ</p></div>`;
+    ${pick}
+    <h4 class="grp"><span class="tn">${ctrPick ? esc(short(ctrPick)) + "の対策" : "ハンター別の対策"}</span>${ctrPick ? "" : `<small>${shown.length}体</small>`}</h4>
+    <div class="clist${ctrPick ? " one" : ""}">${cards || '<p class="none">該当なし</p>'}</div>
+    ${foot.replace("</p>", "・カードの名前をタップで詳細へ</p>")}</div>`;
 }
 function ctrBody(x, tags) {
   const b = [...(x.tags || []).map((t) => `<i class="ctag t-${t}">${esc((tags || {})[t] || t)}</i>`), ...(x.dmg || []).map((d) => `<i class="cdmg">${esc(d[0])} <b>${esc(d[1])}</b></i>`)];
@@ -332,12 +343,12 @@ function ctrMore(x) {
 let ctrOpen = new Set();
 // ハンター詳細などから対策タブのそのキャラへ飛ぶ
 function goCounter(name) {
-  ctrTag = "";
-  ctrOpen.add(name);
+  ctrTag = ""; ctrView = "h"; ctrPick = name;
   document.querySelector('[data-tab="ctr"]').click();
   const el = [...document.querySelectorAll("[data-cc]")].find((e) => e.dataset.cc === name);
   if (!el) return;
-  el.scrollIntoView({ block: "start" });
+  $("#list").scrollTop = 0;
+  const pb = $(".cpick button.on"); if (pb) pb.scrollIntoView({ block: "nearest", inline: "center" });
   el.classList.add("flash");
   setTimeout(() => el.classList.remove("flash"), 1600);
 }
@@ -1248,7 +1259,11 @@ document.addEventListener("click", (e) => {
   const cm = e.target.closest("[data-cmore]");
   if (cm) { const n = cm.dataset.cmore; ctrOpen.has(n) ? ctrOpen.delete(n) : ctrOpen.add(n); const y = $("#list").scrollTop; render(); $("#list").scrollTop = y; return; }
   const ct = e.target.closest("[data-ctag]");
-  if (ct) { const k = ct.dataset.ctag; ctrTag = ctrTag === k ? "" : k; return render(); }
+  if (ct) { const k = ct.dataset.ctag; ctrTag = ctrTag === k ? "" : k; ctrPick = ""; return render(); }
+  const cv = e.target.closest("[data-cview]");
+  if (cv) { ctrView = cv.dataset.cview; render(); $("#list").scrollTop = 0; return; }
+  const cp = e.target.closest("[data-cpick]");
+  if (cp) { ctrPick = cp.dataset.cpick; const y = $("#list").scrollTop, x = $(".cpick").scrollLeft; render(); $("#list").scrollTop = y; $(".cpick").scrollLeft = x; return; }
   const u = e.target.closest("[data-url]");
   if (u) return api() ? api().open_url(u.dataset.url) : window.open(u.dataset.url);
   const z = e.target.closest("[data-zoom]");
