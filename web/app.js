@@ -111,6 +111,7 @@ function render() {
   if (tab === "pl") return renderPlaces();
   if (tab === "ban") return renderBan(q);
   if (tab === "beg") return renderBeginner();
+  if (tab === "ctr") return renderCounter();
 
   let cs = chars(tab).filter((c) => (!q || c.name.includes(q)) && (!tierOn.size || tierOn.has(c.tier)));
   cs.sort((a, b) => RANK[a.tier] - RANK[b.tier]);
@@ -213,6 +214,114 @@ function renderBeginner() {
     <div class="bavoids">${avoid}</div>
     ${tplSummary(begSide)}
     <p class="bfoot">出典: ${links}（${esc(B.updated || "")} まとめ）</p></div>`;
+}
+
+/* ---------- ハンター対策・ダメージ計算 ---------- */
+// 体力ゲージ (2マス=ダウン。0.5刻みで半マス)
+function hpSVG(d, w = 54) {
+  const cell = (x, i) => {
+    const l = d >= i + 0.5, r = d >= i + 1;
+    return `<rect x="${x}" y="2" width="11" height="12" rx="3" fill="${l ? "var(--bad)" : "var(--good)"}"/>
+      <rect x="${x + 11}" y="2" width="11" height="12" rx="3" fill="${r ? "var(--bad)" : "var(--good)"}"/>
+      <rect x="${x}" y="2" width="22" height="12" rx="3" fill="none" stroke="#0008"/><line x1="${x + 11}" y1="2" x2="${x + 11}" y2="14" stroke="#0006"/>`;
+  };
+  return `<svg class="hp" viewBox="0 0 50 16" width="${w}">${cell(2, 0)}${cell(26, 1)}</svg>`;
+}
+// サバイバーの人形 (0 無傷 / 1 負傷 / 2 ダウン)
+function survSVG(st) {
+  const col = st === 0 ? "var(--good)" : "var(--bad)";
+  if (st === 2) return `<svg class="surv" viewBox="0 0 48 40"><circle cx="9" cy="30" r="5" fill="${col}"/><path d="M15 28h22l5 4H15z" fill="${col}"/><path d="M6 20l4 4M14 18v5M22 20l-3 4" stroke="var(--bad)" stroke-width="2" stroke-linecap="round"/></svg>`;
+  return `<svg class="surv" viewBox="0 0 48 40"><circle cx="24" cy="8" r="5.5" fill="${col}"/><path d="M17 16h14l2 13h-4l-1 10h-8l-1-10h-4z" fill="${col}"/>${st === 1 ? '<path d="M30 20l4-3M31 25l5-1" stroke="#fff8" stroke-width="1.6" stroke-linecap="round"/>' : ""}</svg>`;
+}
+const CT_ICON = {
+  hit: '<path d="M5 19L17 7M14 5l5 5"/><path d="M4 14l6 6"/>',
+  terror: '<rect x="4" y="5" width="16" height="14" rx="1"/><path d="M12 5v14M4 12h16"/>',
+  gate: '<path d="M4 20V9a8 8 0 0 1 16 0v11"/><path d="M8 20v-9M12 20V7M16 20v-9"/>',
+  half: '<circle cx="12" cy="12" r="7"/><path d="M12 5a7 7 0 0 1 0 14z" fill="currentColor"/>',
+  chair: '<path d="M7 3v10h10V3M7 13l-2 8M17 13l2 8M5 17h14"/>',
+  run: '<circle cx="15" cy="4.5" r="2"/><path d="M8 21l3-6 3 2v4M10 9l4-2 3 4 3 1M6 12l3-3"/>',
+};
+const ctIcon = (k) => `<svg class="cti" viewBox="0 0 24 24">${CT_ICON[k]}</svg>`;
+let ctrTag = "";
+function renderCounter() {
+  const C = D.counter, list = $("#list");
+  if (!C) return (list.innerHTML = '<p class="none">対策データがありません</p>');
+  const eq = (parts, d, note) => `<div class="ceq">${parts.map((p) => `<span class="cp ${p[2] || ""}">${p[0]}<b>${p[1]}</b></span>`).join('<i class="op">＋</i>')}<i class="op">＝</i>${hpSVG(d, 46)}<span class="cres">${note}</span></div>`;
+  const basics = `
+    <div class="cbox">
+      <div class="ch3">体力は2マス（0.5刻み）</div>
+      <div class="cstates">
+        <div>${survSVG(0)}${hpSVG(0)}<b>無傷</b><small>ダメージ 0</small></div>
+        <div class="arw">→</div>
+        <div>${survSVG(1)}${hpSVG(1)}<b>負傷</b><small>ダメージ 1</small></div>
+        <div class="arw">→</div>
+        <div>${survSVG(2)}${hpSVG(2)}<b>ダウン</b><small>ダメージ 2</small></div>
+      </div>
+    </div>
+    <div class="cbox">
+      <div class="ch3">ダメージの足し算</div>
+      <div class="cparts">
+        <span class="cpart">${ctIcon("hit")}<b>通常攻撃</b><em>1</em></span>
+        <span class="cpart">${ctIcon("half")}<b>スキル（多く）</b><em>0.5</em></span>
+        <span class="cpart bad">${ctIcon("terror")}<b>恐怖の一撃</b><em>＋1</em><small>板窓の乗り越え・救助・治療などの最中に殴られる</small></span>
+        <span class="cpart bad">${ctIcon("gate")}<b>引き留める</b><em>＋1</em><small>通電後しばらく（ハンターの人格）</small></span>
+      </div>
+      ${eq([["通常", "1"], ["恐怖", "＋1", "bad"]], 2, "無傷でも即ダウン")}
+      ${eq([["通常", "1"], ["引き留める", "＋1", "bad"]], 2, "通電後は1発でダウン")}
+      ${eq([["スキル", "0.5"], ["スキル", "0.5"]], 1, "2回で負傷")}
+      ${eq([["檻の外", "0.5"], ["恐怖", "＋1", "bad"], ["引き留める", "＋1", "bad"]], 2, "足萎えの羊なら2.5 → ダウン")}
+    </div>
+    <div class="cbox">
+      <div class="ch3">覚えておくこと</div>
+      <ul class="ctips">
+        <li>${ctIcon("run")}<span>殴られると一瞬<b>加速</b>、ハンターは<b>硬直</b> → 距離を取るチャンス<small>0.5ダメージではほとんどのキャラは加速しない</small></span></li>
+        <li>${ctIcon("half")}<span>0.5だけの傷は<b>基本は治療できない</b>（1たまってから）<small>0.5を重ねてくるハンターには傷を残さないのが大事</small></span></li>
+        <li>${ctIcon("terror")}<span>ハンターが近い時は<b>板窓・救助・治療をしない</b>（恐怖の一撃）</span></li>
+        <li>${ctIcon("chair")}<span>救助された後20秒は<b>危機一髪</b>でダウンを先送りできる</span></li>
+      </ul>
+    </div>
+    <div class="cbox">
+      <div class="ch3">椅子のゲージ</div>
+      <svg class="chairbar" viewBox="0 -2 320 56">
+        <rect x="10" y="18" width="300" height="12" rx="6" fill="#ffffff14"/>
+        <rect x="10" y="18" width="150" height="12" rx="6" fill="var(--good)" opacity=".55"/>
+        <rect x="160" y="18" width="150" height="12" rx="6" fill="var(--bad)" opacity=".55"/>
+        <line x1="130" y1="14" x2="130" y2="34" stroke="var(--gold1)" stroke-width="2"/><text x="130" y="9" text-anchor="middle">4割救助</text>
+        <line x1="160" y1="14" x2="160" y2="34" stroke="#fff" stroke-width="2" stroke-dasharray="3 2"/><text x="160" y="48" text-anchor="middle">5割</text>
+        <line x1="280" y1="14" x2="280" y2="34" stroke="var(--gold1)" stroke-width="2"/><text x="280" y="9" text-anchor="middle">9割救助</text>
+        <text x="10" y="48">0%</text><text x="310" y="48" text-anchor="end">脱落</text>
+      </svg>
+      <p class="cnote">5割を越えてから救助されると、<b>次に吊られたら即脱落</b>。2回吊られた人も次は即脱落。</p>
+    </div>`;
+  const tags = C.tags || {};
+  const hs = chars("h").filter((c) => C.h[c.name]).sort((a, b) => RANK[a.tier] - RANK[b.tier]);
+  const shown = hs.filter((c) => !ctrTag || (C.h[c.name].tags || []).includes(ctrTag));
+  const cards = shown.map((c) => {
+    const x = C.h[c.name];
+    return `<div class="ccard">
+      <button class="chd" data-ch="${esc(c.name)}"><img src="${esc(sz(c.img, 96))}" alt="" loading="lazy"><span><b>${esc(short(c.name))}<i class="tier ${c.tier}">${c.tier}</i></b><small>${esc(x.t)}</small></span></button>
+      ${ctrBody(x, tags)}
+    </div>`;
+  }).join("");
+  list.innerHTML = `<div class="beg ctr">
+    <h4 class="grp"><span class="tn">ダメージの基本</span></h4>
+    <div class="cgrid">${basics}</div>
+    <h4 class="grp"><span class="tn">ハンター別の対策</span><small>${shown.length}体</small></h4>
+    <div class="ctagbar">${Object.entries(tags).map(([k, v]) => `<button data-ctag="${k}" class="ctag t-${k} ${ctrTag === k ? "on" : ""}">${esc(v)}</button>`).join("")}</div>
+    <div class="clist">${cards}</div>
+    <p class="bfoot">出典: <u data-url="${esc(C.src.url)}">${esc(C.src.label)}</u> を短くまとめたもの（${esc(C.updated)}）・カードの名前をタップで詳細へ</p></div>`;
+}
+function ctrBody(x, tags) {
+  const b = [...(x.tags || []).map((t) => `<i class="ctag t-${t}">${esc((tags || {})[t] || t)}</i>`), ...(x.dmg || []).map((d) => `<i class="cdmg">${esc(d[0])} <b>${esc(d[1])}</b></i>`)];
+  return `${b.length ? `<div class="cbadges">${b.join("")}</div>` : ""}
+    <ol class="cl">${x.c.map((s) => `<li>${esc(s)}</li>`).join("")}</ol>
+    ${x.r ? `<div class="cr">${ctIcon("chair")}<span>${esc(x.r)}</span></div>` : ""}`;
+}
+// キャラ詳細 (ハンター) に出す短い対策
+function counterSec(c) {
+  const x = D.counter && D.counter.h[c.name];
+  if (!x) return "";
+  return `<div class="sec"><div class="lbl">サバイバー側の対策</div><div class="ccard flat"><p class="ct">${esc(x.t)}</p>${ctrBody(x, D.counter.tags)}</div></div>`;
 }
 
 const TIER_LABEL = { S: "環境トップ", A: "強力", B: "標準", C: "やや不利", D: "厳しい" };
@@ -920,6 +1029,7 @@ function showDetail(key, replace) {
     <div class="sec"><div class="lbl"><span><span class="bad">苦手</span>${isS ? "なハンター" : "なサバイバー"}</span></div>${row(isS ? c.badH : c.badS)}</div>`;
   body.innerHTML = `
     ${muSec}
+    ${!isS ? counterSec(c) : ""}
     <div class="sec"><div class="lbl">人格${api() && api().capture_persona ? '<button class="mini capp" data-capp title="ゲームで人格の網の画面を開いてから押すと、その画面を読み取ってこのキャラの構成として保存します">ゲーム画面から記録</button>' : ""}</div>
       ${builds.length > 1 ? `<div class="chips">${builds.map((x, i) => `<button class="chip ${i ? "" : "on"}${x.mine ? " mine" : x.srcUrl ? " vid" : ""}" data-b="${i}" title="${esc(x.title || x.name)}">${esc(x.name)}</button>`).join("")}</div>` : ""}
       <div id="build">${b ? buildHTML(b, c.side, c.personas) : '<p class="none">情報なし</p>'}</div>
@@ -1072,6 +1182,8 @@ $("#q").addEventListener("input", render);
 document.addEventListener("click", (e) => {
   const bs = e.target.closest("[data-bside]");
   if (bs) { begSide = bs.dataset.bside; render(); $("#list").scrollTop = 0; return; }
+  const ct = e.target.closest("[data-ctag]");
+  if (ct) { const k = ct.dataset.ctag; ctrTag = ctrTag === k ? "" : k; return render(); }
   const u = e.target.closest("[data-url]");
   if (u) return api() ? api().open_url(u.dataset.url) : window.open(u.dataset.url);
   const z = e.target.closest("[data-zoom]");

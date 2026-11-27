@@ -91,6 +91,7 @@ class Api:
                 data["tiersExtra"] = json.loads((ROOT / "data" / "tiers_extra.json").read_text(encoding="utf-8"))
                 data["personaLayout"] = json.loads((ROOT / "data" / "persona_layout.json").read_text(encoding="utf-8"))
                 data["personaVideos"] = json.loads((ROOT / "data" / "persona_videos.json").read_text(encoding="utf-8"))
+                data["counter"] = json.loads((ROOT / "data" / "counter.json").read_text(encoding="utf-8"))
                 data["myPersonas"] = read_json(ROOT / "data" / "my_personas.json", [])
         except Exception:
             pass
