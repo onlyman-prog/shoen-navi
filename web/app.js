@@ -333,11 +333,31 @@ function ctrBody(x, tags) {
     ${x.r ? `<div class="cr">${ctIcon("chair")}<span>${esc(x.r)}</span></div>` : ""}`;
 }
 const CTR_SEC = [["chase", "チェイス", "run"], ["rescue", "救助", "chair"], ["game", "解読・立ち回り", "gate"]];
+// 体力バー (0〜2 を連続で塗る)
+function hpBar(d) {
+  const f = Math.max(0, Math.min(2, d)) / 2 * 46;
+  return `<svg class="hp hpb" viewBox="0 0 50 16" width="54"><rect x="2" y="2" width="46" height="12" rx="3" fill="var(--good)"/>${f ? `<rect x="2" y="2" width="${f}" height="12" rx="3" fill="var(--bad)"/>` : ""}<line x1="25" y1="2" x2="25" y2="14" stroke="#0008"/><rect x="2" y="2" width="46" height="12" rx="3" fill="none" stroke="#0008"/></svg>`;
+}
+function ctrCalc(c) {
+  if (!c) return "";
+  const cell = (v) => typeof v === "string" && v.startsWith("hp:") ? `<span class="hpc">${hpBar(+v.slice(3))}<b>${v.slice(3)}</b></span>` : esc(v);
+  const dot = (ch, i) => `<i class="edot ${ch === "R" ? "r" : ch === "B" ? "b" : "n"}${i ? "" : " me"}"></i>`;
+  return `<div class="ccalc"><div class="csh">${ctIcon("half")}${esc(c.h)}</div>
+    ${c.lead ? `<p class="clead">${c.lead}</p>` : ""}
+    ${c.table ? (() => {
+      const r0 = c.table.rows[0], isHp = (v) => typeof v === "string" && v.startsWith("hp:");
+      const tx = r0.map((v, i) => i > 0 && !isHp(v)), n = tx.filter((t) => !t).length;
+      return `<table class="ctab" style="--n:${n}"><thead><tr>${c.table.head.map((h, i) => `<th${tx[i] ? ' class="tx"' : ""}>${esc(h)}</th>`).join("")}</tr></thead><tbody>${c.table.rows.map((r) => `<tr>${r.map((v, i) => `<td${tx[i] ? ' class="tx"' : ""}>${cell(v)}</td>`).join("")}</tr>`).join("")}</tbody></table>`;
+    })() : ""}
+    ${c.warn ? `<p class="cwarn">${esc(c.warn)}</p>` : ""}
+    ${(c.ex || []).length ? `<div class="cex"><small class="cexh"><i class="edot r me"></i>＝チェイス役　<i class="edot r"></i><i class="edot b"></i>＝電荷の色</small>${c.ex.map((e) => `<div class="cexr"><span class="edots">${[...e.dots].map(dot).join("")}</span><span>${esc(e.t)}</span><b>${esc(e.d)}</b></div>`).join("")}</div>` : ""}
+    ${(c.tips || []).length ? `<ul>${c.tips.map((s) => `<li>${esc(s)}</li>`).join("")}</ul>` : ""}</div>`;
+}
 function ctrMore(x) {
   const secs = CTR_SEC.filter(([k]) => (x[k] || []).length);
-  if (!secs.length) return "";
+  if (!secs.length && !x.calc) return "";
   const S = (D.counter && D.counter.sources) || {};
-  return `<div class="cmorebody">${secs.map(([k, l, ic]) => `<div class="csec"><div class="csh">${ctIcon(ic)}${l}</div><ul>${x[k].map((s) => `<li>${esc(s)}</li>`).join("")}</ul></div>`).join("")}
+  return `<div class="cmorebody">${ctrCalc(x.calc)}${secs.map(([k, l, ic]) => `<div class="csec"><div class="csh">${ctIcon(ic)}${l}</div><ul>${x[k].map((s) => `<li>${esc(s)}</li>`).join("")}</ul></div>`).join("")}
     ${(x.src || []).length ? `<div class="csrc">${x.src.map((k) => S[k] ? `<small data-url="${esc(S[k].url)}" title="${esc(S[k].label)}">${S[k].url.includes("youtube") ? "▶ " : ""}${esc(S[k].label)}<b>${esc(S[k].date)}</b></small>` : "").join("")}</div>` : ""}</div>`;
 }
 let ctrOpen = new Set();
