@@ -247,7 +247,7 @@ let ctrTag = "", ctrView = "b", ctrPick = "";
 function renderCounter() {
   const C = D.counter, list = $("#list");
   if (!C) return (list.innerHTML = '<p class="none">対策データがありません</p>');
-  const eq = (parts, d, note) => `<div class="ceq">${parts.map((p) => `<span class="cp ${p[2] || ""}">${p[0]}<b>${p[1]}</b></span>`).join('<i class="op">＋</i>')}<i class="op">＝</i>${hpSVG(d, 46)}<span class="cres">${note}</span></div>`;
+  const eq = ctrEq;
   const basics = `
     <div class="cbox">
       <div class="ch3">体力は2マス（0.5刻み）</div>
@@ -333,6 +333,7 @@ function ctrBody(x, tags) {
     ${x.r ? `<div class="cr">${ctIcon("chair")}<span>${esc(x.r)}</span></div>` : ""}`;
 }
 const CTR_SEC = [["chase", "チェイス", "run"], ["rescue", "救助", "chair"], ["game", "解読・立ち回り", "gate"]];
+function ctrEq(parts, d, note) { return `<div class="ceq">${parts.map((p) => `<span class="cp ${p[2] || ""}">${esc(p[0])}<b>${esc(p[1])}</b></span>`).join('<i class="op">＋</i>')}<i class="op">＝</i>${hpSVG(d, 46)}<span class="cres">${esc(note)}</span></div>`; }
 // 体力バー (0〜2 を連続で塗る)
 function hpBar(d) {
   const f = Math.max(0, Math.min(2, d)) / 2 * 46;
@@ -344,13 +345,14 @@ function ctrCalc(c) {
   const dot = (ch, i) => `<i class="edot ${ch === "R" ? "r" : ch === "B" ? "b" : "n"}${i ? "" : " me"}"></i>`;
   return `<div class="ccalc"><div class="csh">${ctIcon("half")}${esc(c.h)}</div>
     ${c.lead ? `<p class="clead">${c.lead}</p>` : ""}
-    ${c.table ? (() => {
-      const r0 = c.table.rows[0], isHp = (v) => typeof v === "string" && v.startsWith("hp:");
+    ${[c.table, c.table2].filter(Boolean).map((T) => {
+      const r0 = T.rows[0], isHp = (v) => typeof v === "string" && v.startsWith("hp:");
       const tx = r0.map((v, i) => i > 0 && !isHp(v)), n = tx.filter((t) => !t).length;
-      return `<table class="ctab" style="--n:${n}"><thead><tr>${c.table.head.map((h, i) => `<th${tx[i] ? ' class="tx"' : ""}>${esc(h)}</th>`).join("")}</tr></thead><tbody>${c.table.rows.map((r) => `<tr>${r.map((v, i) => `<td${tx[i] ? ' class="tx"' : ""}>${cell(v)}</td>`).join("")}</tr>`).join("")}</tbody></table>`;
-    })() : ""}
+      return `<table class="ctab" style="--n:${n}"><thead><tr>${T.head.map((h, i) => `<th${tx[i] ? ' class="tx"' : ""}>${esc(h)}</th>`).join("")}</tr></thead><tbody>${T.rows.map((r) => `<tr>${r.map((v, i) => `<td${tx[i] ? ' class="tx"' : ""}>${cell(v)}</td>`).join("")}</tr>`).join("")}</tbody></table>`;
+    }).join("")}
+    ${(c.eq || []).map((e) => ctrEq(e[0], e[1], e[2])).join("")}
     ${c.warn ? `<p class="cwarn">${esc(c.warn)}</p>` : ""}
-    ${(c.ex || []).length ? `<div class="cex"><small class="cexh"><i class="edot r me"></i>＝チェイス役　<i class="edot r"></i><i class="edot b"></i>＝電荷の色</small>${c.ex.map((e) => `<div class="cexr"><span class="edots">${[...e.dots].map(dot).join("")}</span><span>${esc(e.t)}</span><b>${esc(e.d)}</b></div>`).join("")}</div>` : ""}
+    ${(c.ex || []).length ? `<div class="cex">${c.legend ? `<small class="cexh">${c.legend}</small>` : ""}${c.ex.map((e) => `<div class="cexr"><span class="edots">${[...e.dots].map(dot).join("")}</span><span>${esc(e.t)}</span><b>${esc(e.d)}</b></div>`).join("")}</div>` : ""}
     ${(c.tips || []).length ? `<ul>${c.tips.map((s) => `<li>${esc(s)}</li>`).join("")}</ul>` : ""}</div>`;
 }
 function ctrMore(x) {
