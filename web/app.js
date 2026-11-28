@@ -179,13 +179,129 @@ function tplSummary(side) {
     <p class="none">各キャラのおすすめ構成（${esc(D.source.name)}）を自動で分類した結果。キャラ詳細の「人格」にもテンプレ名を表示しています。</p>`;
 }
 
+/* ---------- 初心者: ゲームの流れと用語 ---------- */
+// [[用語]] / [[用語|表示]] はタップで説明が出る
+const GLOSS = [
+  ["試合の基本", {
+    暗号機: "マップに7台ある機械。サバイバーが5台解読すると通電する",
+    解読: "暗号機を操作して進めること。2人で解くと速いけど、まとめて見つかりやすい",
+    調整: "解読中にときどき出る針のミニゲーム。失敗すると暗号機が爆発して進みが少し戻り、ハンターに場所が知らされる",
+    通電: "暗号機を5台解読し終えた状態。ゲートが開けられるようになる",
+    ゲート: "脱出口。マップに2か所あり、通電後に開けられる（開けるのに約18秒）",
+    ハッチ: "地面にある脱出口。サバイバーが残り1人になるなどの条件で開く。ハンターは閉じることもできる",
+    地下室: "マップに1つある椅子の部屋。ここに吊られると救助がとても難しい",
+  }],
+  ["体力とダメージ", {
+    負傷: "ダメージ1の状態。あと1ダメージでダウン",
+    ダウン: "ダメージ2の状態。這うことしかできず、ハンターに椅子へ運ばれる",
+    治療: "味方の傷を治すこと。自分ひとりでは基本治せない（一部のキャラ・アイテムを除く）",
+    恐怖の一撃: "板窓の乗り越え・救助・治療などの最中に殴られると＋1ダメージ。無傷でも1発でダウン",
+    椅子: "ロケットチェア。ダウンした人を縛る椅子。ゲージが満タンになると飛ばされて脱落",
+    吊る: "ハンターがサバイバーを椅子に縛ること。「1吊り」「4吊り（全滅）」のように数える",
+  }],
+  ["チェイス", {
+    チェイス: "ハンターに追われて逃げること。長く逃げるほど味方が解読を進められる",
+    ファーストチェイス: "略してファチェ。最初に追われた人のチェイス。ここが長いほどサバイバーが有利",
+    板: "倒すと通路をふさげる。ハンターに当てると気絶させられる（板当て）。ハンターは板を壊せる",
+    窓: "乗り越えて逃げられる。ハンターも越えられるが、サバイバーより遅い",
+    強ポジ: "板と窓が多く、長く逃げられる場所。心音が出たらここへ向かう",
+    心音: "ハンターが近いとサバイバー側に出る心臓のマークと音。近いほど強くなる",
+    耳鳴り: "ハンター側の表示。近くにサバイバーがいると出る（隠れていてもいることは分かる）",
+    牽制: "ハンターを邪魔して味方を逃がすこと（体当たり・道具・板当てなど）",
+  }],
+  ["救助", {
+    救助: "椅子に縛られた味方をほどくこと。ふつうは救助役が1人で行く",
+    救助狩り: "救助に来たサバイバーを待ち伏せて殴ること",
+    キャンプ: "ハンターが椅子の近くから離れずに待つこと",
+    トンネル: "救助された人をすぐ追いかけて、また吊ること",
+    危機一髪: "サバイバーの人格。救助された人は20秒間、攻撃を受けてもダウンが先送りになる",
+    全体負荷: "何人もに少しずつダメージを入れて治療させ、解読を止めさせる戦い方",
+  }],
+  ["ハンターの用語", {
+    存在感: "ハンターのゲージ。攻撃を当てたり時間で溜まり、溜まるとスキルが強くなる（第2・第3段階）",
+    補助特質: "ハンターが試合前に1つ選ぶ便利な能力。リッスン・巡視者・瞬間移動・神出鬼没・興奮など",
+    引き留める: "ハンターの人格。通電してから120秒間、攻撃が＋1（無傷でも1発でダウン）",
+  }],
+  ["準備・キャラ", {
+    人格: "試合前に組む能力のセット。キャラ詳細の「人格」でおすすめが見られる",
+    中治り: "サバイバーの人格。通電した時に傷が1回分治る（ダウン中なら起き上がれる）",
+    外在特質: "キャラごとの固有能力。道具やスキルのこと",
+    役割: "サバイバーの得意分野。解読・救助・牽制・補助の4つ",
+    BAN: "ランク戦で試合前に「使えなくする」キャラ。強いハンターはよくBANされる",
+  }],
+];
+const GL = Object.assign({}, ...GLOSS.map((g) => g[1]));
+const gtx = (s) => esc(s).replace(/\[\[(.+?)(?:\|(.+?))?\]\]/g, (_, k, l) => `<b class="gt" data-gt="${k}" title="${esc(GL[k] || "")}">${l || k}</b>`);
+const GUIDE = [
+  ["開幕", "まずは解読と索敵",
+    "バラバラの場所からスタート。近くの[[暗号機]]を[[解読]]する。[[調整]]は失敗しないように。ハンターの[[心音]]が出たら解読をやめて[[強ポジ]]へ",
+    "[[補助特質]]と[[耳鳴り]]を頼りに、暗号機の近くを回って最初の1人を探す"],
+  ["チェイス", "逃げる時間＝解読の時間",
+    "[[板]]を倒して足止め、[[窓]]を越えて距離を取る。目安は暗号機1台分（1分）以上。ハンターが近い時に板窓・治療をすると[[恐怖の一撃]]",
+    "[[存在感]]を溜めてスキルを強くする。板の前で待って回り込む。長引いたら別の人に切り替えるのも手"],
+  ["ダウン", "椅子に吊られる",
+    "[[ダウン]]したら[[椅子]]に[[吊る|吊られる]]。他の人は解読を続け、[[救助]]は1人で向かう（全員で行かない）",
+    "吊ったら近くで[[救助狩り]]を狙うか、離れて別の人を探す。椅子の前で待ち続ける[[キャンプ]]は解読を進められやすい"],
+  ["救助", "5割の前に助けて、すぐ離れる",
+    "椅子のゲージが半分になる前に救助。助けられた人は[[危機一髪]]の20秒で離れる。[[負傷]]した人はハンターから離れた所で[[治療]]しあう",
+    "救助された人をすぐ追う（[[トンネル]]）か、救助した人を狙う。ケガ人を増やす[[全体負荷]]も強い"],
+  ["通電", "5台解読でゲートへ",
+    "[[通電]]したら[[ゲート]]を開けに行く。[[中治り]]で傷が1回治る。ハンターは[[引き留める]]で1発ダウンにしてくるので、通電直後の救助は慎重に",
+    "暗号機が残り少なくなったら、解読されていない暗号機を守る。通電後は[[引き留める]]でゲート付近の人を狙う"],
+  ["決着", "3人逃げれば勝ち",
+    "最後の1人になったら[[ハッチ]]を探すのも手",
+    "3人以上[[吊る|吊れば]]勝ち。最後の1人はハッチを閉じて追い詰める"],
+];
+function renderGuide() {
+  const res = (n, cls, lab) => `<div class="gres ${cls}"><span>${[0, 1, 2, 3].map((i) => `<i class="${i < n ? "o" : "x"}"></i>`).join("")}</span><b>${lab}</b></div>`;
+  return `
+    <p class="blead">サバイバー4人とハンター1人の鬼ごっこ。まずは1試合の流れをざっくり覚えよう<br><small>下線の言葉はタップすると説明が出ます。いちばん下に用語集もあります</small></p>
+    <div class="cbox">
+      <div class="ch3">勝ち負けの決まり</div>
+      <div class="grule"><b class="gs">サバイバー</b><span>${gtx("[[暗号機]]を5台[[解読]] → [[通電]] → [[ゲート]]を開けて脱出")}</span></div>
+      <div class="grule"><b class="gh">ハンター</b><span>${gtx("サバイバーを殴って[[ダウン]]させ、[[椅子]]に[[吊る|吊って]]脱落させる")}</span></div>
+      <div class="gress">${res(4, "w", "3〜4人脱出：サバイバー勝ち")}${res(2, "d", "2人脱出：引き分け")}${res(1, "l", "0〜1人脱出：ハンター勝ち")}</div>
+    </div>
+    <div class="gflow">${GUIDE.map(([t, sub, s, h], i) => `<div class="gstep">
+      <div class="gnum">${i + 1}</div>
+      <div class="gbody"><div class="gtt">${t}<small>${sub}</small></div>
+        <div class="gcols"><p><em class="gs">サバ</em>${gtx(s)}</p><p><em class="gh">ハンター</em>${gtx(h)}</p></div></div></div>`).join("")}</div>
+    <div class="cbox">
+      <div class="ch3">サバイバーの4つの${gtx("[[役割]]")}</div>
+      <div class="groles">
+        <div><b>解読</b><small>暗号機を速く解く。見つからないことが大事</small></div>
+        <div><b>救助</b><small>椅子の味方を助ける。救助しても倒れにくい</small></div>
+        <div><b>牽制</b><small>ハンターを邪魔して味方を逃がす</small></div>
+        <div><b>補助</b><small>治療や情報で味方を支える</small></div>
+      </div>
+    </div>
+    <div class="cbox">
+      <div class="ch3">最初はこれだけ</div>
+      <div class="gcols">
+        <ul class="ctips"><li><em class="gs">サバ</em><span>${gtx("[[調整]]を失敗しない")}</span></li><li><em class="gs">サバ</em><span>${gtx("[[心音]]が出たら板窓の多い所へ")}</span></li><li><em class="gs">サバ</em><span>救助は1人だけ。他の人は解読</span></li><li><em class="gs">サバ</em><span>救助されたら他の人から離れる</span></li><li><em class="gs">サバ</em><span>ハンターの近くで板窓・治療をしない</span></li></ul>
+        <ul class="ctips"><li><em class="gh">ハンター</em><span>1人目を早くダウンさせる</span></li><li><em class="gh">ハンター</em><span>追いかけすぎない（長引いたら切り替え）</span></li><li><em class="gh">ハンター</em><span>吊ったら周りの暗号機を見回る</span></li><li><em class="gh">ハンター</em><span>${gtx("板の前で[[恐怖の一撃]]を狙う")}</span></li><li><em class="gh">ハンター</em><span>${gtx("通電後は[[引き留める]]で1発ダウン")}</span></li></ul>
+      </div>
+      <p class="cnote">ダメージの計算や、ハンターごとの対策は「対策」タブに。</p>
+    </div>
+    <h4 class="grp"><span class="tn">用語集</span><small>タップで説明</small></h4>
+    <div class="gloss">${GLOSS.map(([g, o]) => `<div class="cbox"><div class="ch3">${g}</div><dl>${Object.entries(o).map(([k, v]) => `<dt>${k}</dt><dd>${gtx(v.replace(/(暗号機|通電|ゲート|椅子|ダウン|救助|治療|人格)/g, (m) => (m === k ? m : `[[${m}]]`)))}</dd>`).join("")}</dl></div>`).join("")}</div>`;
+}
+function showGloss(el) {
+  let p = $("#gpop");
+  if (!p) { p = document.createElement("div"); p.id = "gpop"; document.body.appendChild(p); }
+  p.innerHTML = `<b>${esc(el.dataset.gt)}</b>${esc(GL[el.dataset.gt] || "")}`;
+  p.hidden = false;
+}
+
 /* ---------- 初心者おすすめ ---------- */
 // 扱いやすさ (YouTube解説) と 今の強さ (最新ティア) を足して並べる。ティアが変われば順番も変わる
 const EASE_PT = { S: 3, "S-": 2.6, A: 2.2, B: 1.5 };
 const TIER_PT = { S: 2, A: 1.6, B: 1.1, C: 0.6, D: 0, "?": 0.8 };
-let begSide = "s";
+let begSide = "g";
 function renderBeginner() {
   const B = D.beginner, list = $("#list");
+  const seg = `<div class="pseg bseg">${[["g", "ゲームの流れ"], ["s", "サバイバー"], ["h", "ハンター"]].map(([k, l]) => `<button data-bside="${k}" class="${begSide === k ? "on" : ""}">${l}</button>`).join("")}</div>`;
+  if (begSide === "g") return (list.innerHTML = `<div class="beg">${seg}${renderGuide()}</div>`);
   if (!B || !B[begSide]) return (list.innerHTML = '<p class="none">おすすめデータがありません</p>');
   const S = B[begSide], src = B._sources || {};
   const picks = S.pick.map((p, i) => ({ p, i, c: D.chars[p.name] })).filter((x) => x.c)
@@ -207,7 +323,7 @@ function renderBeginner() {
   }).join("");
   const links = Object.values(src).filter((s) => s.url).map((s) => `<u data-url="${esc(s.url)}">${esc(s.label)}${s.date ? `（${esc(s.date)}）` : ""}</u>`).join(" ・ ");
   list.innerHTML = `<div class="beg">
-    <div class="pseg bseg"><button data-bside="s" class="${begSide === "s" ? "on" : ""}">サバイバー</button><button data-bside="h" class="${begSide === "h" ? "on" : ""}">ハンター</button></div>
+    ${seg}
     <p class="blead">${begSide === "s" ? "操作がシンプルで、今の環境でも戦えるサバイバー" : "操作がシンプルで、今の環境でも勝ちやすいハンター"}<br><small>「扱いやすさ」はYouTube解説、「今の強さ」はサバ/ハンター一覧のランキングと同じ。2つの合計で並べています（ティアが変わると順番も変わります）・タップで詳細へ</small></p>
     <div class="blist">${cards}</div>
     <h4 class="grp"><span class="tn">${begSide === "s" ? "最初は避けたいキャラ" : "強いけど最初は難しいキャラ"}</span><small>慣れてから</small></h4>
@@ -1274,6 +1390,9 @@ $("#tiers").addEventListener("click", (e) => {
 $("#q").addEventListener("input", render);
 
 document.addEventListener("click", (e) => {
+  const gt = e.target.closest("[data-gt]");
+  if (gt) return showGloss(gt);
+  if ($("#gpop") && !e.target.closest("#gpop")) $("#gpop").hidden = true;
   const bs = e.target.closest("[data-bside]");
   if (bs) { begSide = bs.dataset.bside; render(); $("#list").scrollTop = 0; return; }
   const gc = e.target.closest("[data-goctr]");

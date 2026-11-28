@@ -797,3 +797,45 @@ button.ctag.on { color: #1a1408; }
   .hpc { flex-direction: column; align-items: flex-start; gap: 1px; }
   .hpc svg { width: 46px; }
 }
+
+/* 初心者: ゲームの流れ */
+.beg .cbox { margin-bottom: 10px; }
+.gt { font-weight: 700; color: var(--gold1); text-decoration: underline dotted #dcbd7c99; text-underline-offset: 3px; cursor: help; }
+.grule { display: flex; gap: 8px; align-items: baseline; font-size: 12.5px; line-height: 1.6; margin-bottom: 6px; }
+.grule > b { flex: none; font-size: 10.5px; padding: 1px 7px; border-radius: 6px; }
+.gs { color: #0f1a14; background: var(--good); } .gh { color: #1e0f0e; background: var(--bad); }
+em.gs, em.gh { font-style: normal; font-weight: 800; font-size: 9.5px; padding: 1px 6px; border-radius: 5px; margin-right: 6px; flex: none; }
+.gress { display: flex; flex-wrap: wrap; gap: 6px 14px; margin-top: 8px; }
+.gres { display: flex; align-items: center; gap: 6px; font-size: 11px; }
+.gres span { display: flex; gap: 3px; }
+.gres i { width: 10px; height: 10px; border-radius: 50%; background: #ffffff1c; }
+.gres i.o { background: var(--good); }
+.gres.w b { color: var(--good); } .gres.l b { color: var(--bad); } .gres.d b { color: var(--sub); }
+.gflow { position: relative; margin: 4px 0 12px; }
+.gstep { display: flex; gap: 10px; position: relative; padding-bottom: 12px; }
+.gstep:not(:last-child)::before { content: ""; position: absolute; left: 13px; top: 30px; bottom: 0; width: 2px; background: linear-gradient(var(--gold3), #8a6a3233); }
+.gnum { flex: none; width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; font: 800 13px var(--serif);
+  color: #1a1408; background: linear-gradient(180deg, var(--gold1), var(--gold2)); box-shadow: 0 2px 8px rgba(201,163,92,.3); }
+.gbody { flex: 1; min-width: 0; border: 1px solid var(--line); border-radius: 12px; padding: 8px 11px; background: rgba(255,255,255,.02); }
+.gtt { font: 700 13.5px/1.3 var(--serif); color: var(--gold1); margin-bottom: 6px; }
+.gtt small { font: 400 11px sans-serif; color: var(--sub); margin-left: 8px; }
+.gcols { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 14px; }
+.gcols p { margin: 0; font-size: 12px; line-height: 1.65; }
+.gcols .ctips li { align-items: baseline; }
+.groles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+.groles div { border: 1px solid var(--line); border-radius: 10px; padding: 6px 8px; }
+.groles b { display: block; color: var(--gold1); font-size: 12.5px; }
+.groles small { font-size: 10.5px; color: var(--sub); line-height: 1.45; display: block; }
+.gloss { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.gloss .cbox { margin: 0; }
+.gloss dl { margin: 0; display: grid; grid-template-columns: auto 1fr; gap: 5px 10px; font-size: 11.5px; line-height: 1.5; }
+.gloss dt { font-weight: 700; color: var(--gold1); white-space: nowrap; }
+.gloss dd { margin: 0; color: var(--text); }
+.gloss dd .gt { font-weight: 400; color: inherit; }
+#gpop { position: fixed; left: 50%; transform: translateX(-50%); bottom: 76px; width: min(440px, calc(100% - 32px)); z-index: 30;
+  background: #15161bf2; border: 1px solid var(--gold3); border-radius: 12px; padding: 10px 13px; font-size: 12.5px; line-height: 1.6; box-shadow: 0 8px 28px #000a; }
+#gpop b { display: block; color: var(--gold1); font: 700 14px var(--serif); margin-bottom: 2px; }
+@media (max-width: 600px) {
+  .gcols, .gloss { grid-template-columns: 1fr; }
+  .groles { grid-template-columns: 1fr 1fr; }
+}
